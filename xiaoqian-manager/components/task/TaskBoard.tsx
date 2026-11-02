@@ -25,6 +25,21 @@ import {
 import TaskRow from "./TaskRow";
 import StageSheet from "./StageSheet";
 
+// 状态筛选按「当前所处节点」归类：全部节点未开始 -> 未开始；
+// 否则取第一个未完成的节点；全部完成则归到「上传部署」。
+const STATUS_FILTERS = [
+  { value: "not_started", label: "未开始" },
+  { value: "planer", label: "计划" },
+  { value: "coder", label: "写代码" },
+  { value: "deploy", label: "上传部署" },
+] as const;
+
+function currentStageKey(t: Task): string {
+  if (t.stages.every((s) => s.status === "pending")) return "not_started";
+  const current = t.stages.find((s) => s.status !== "done");
+  return current?.key ?? "deploy";
+}
+
 export default function TaskBoard({
   initialTasks,
   error,
@@ -37,6 +52,7 @@ export default function TaskBoard({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ taskId: string; stage: Stage } | null>(
     null
@@ -60,12 +76,14 @@ export default function TaskBoard({
     return initialTasks
       .filter((t) => {
         if (moduleFilter !== "all" && t.module !== moduleFilter) return false;
+        if (statusFilter !== "all" && currentStageKey(t) !== statusFilter)
+          return false;
         if (q && !`${t.title} ${t.id} ${t.module}`.toLowerCase().includes(q))
           return false;
         return true;
       })
       .sort((a, b) => weightOf(a) - weightOf(b));
-  }, [initialTasks, query, moduleFilter, byTask]);
+  }, [initialTasks, query, moduleFilter, statusFilter, byTask]);
 
   const hasLiveRun = runs.some(
     (r) => r.status === "starting" || r.status === "running" || r.status === "needs_input" || r.status === "settling"
@@ -158,6 +176,19 @@ export default function TaskBoard({
             {modules.map((m) => (
               <SelectItem key={m} value={m}>
                 {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="全部状态" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部状态</SelectItem>
+            {STATUS_FILTERS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
               </SelectItem>
             ))}
           </SelectContent>

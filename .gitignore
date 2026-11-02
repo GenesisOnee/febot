@@ -1,6 +1,7 @@
 test
 archive
 node_modules/
+gitlab
 
 # 多 Agent 执行过程文成
 docs/requirements/R-*
