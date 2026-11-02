@@ -26,7 +26,8 @@ import TaskRow from "./TaskRow";
 import StageSheet from "./StageSheet";
 
 // 状态筛选按「当前所处节点」归类：全部节点未开始 -> 未开始；
-// 否则取第一个未完成的节点；全部完成则归到「上传部署」。
+// 否则取最后一个已开始的节点（pending 不算开始），例如「计划已完成、写代码未开始」
+// 归到「计划」；三个节点都完成时最后一个已开始节点就是「上传部署」。
 const STATUS_FILTERS = [
   { value: "not_started", label: "未开始" },
   { value: "planer", label: "计划" },
@@ -35,9 +36,8 @@ const STATUS_FILTERS = [
 ] as const;
 
 function currentStageKey(t: Task): string {
-  if (t.stages.every((s) => s.status === "pending")) return "not_started";
-  const current = t.stages.find((s) => s.status !== "done");
-  return current?.key ?? "deploy";
+  const started = t.stages.filter((s) => s.status !== "pending");
+  return started[started.length - 1]?.key ?? "not_started";
 }
 
 export default function TaskBoard({
