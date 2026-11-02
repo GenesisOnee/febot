@@ -41,9 +41,10 @@ export const TrajectoryItem = z.object({
 });
 export type TrajectoryItem = z.infer<typeof TrajectoryItem>;
 
-// 任务处理人明细：来自协作平台 getByDemand（入参为需求 id，按任务 id 过滤）。
-// status 已在服务端映射为中文（待处理/处理中/已完成）。
+// 需求处理人明细：来自协作平台 getByDemand（入参为需求 id），一行 = 需求下的一个任务。
+// status 已在服务端映射为中文（待处理/处理中/已完成）；taskId 用于标出当前任务所在行。
 export const TaskHandler = z.object({
+  taskId: z.string().default(""),
   username: z.string().default(""),
   maxHour: z.number().nullable().default(null),
   status: z.string().default(""),

@@ -141,21 +141,21 @@ function mapTrajectory(traj: TwRow[]): TrajectoryItem[] {
     });
 }
 
-// getByDemand 返回的是该需求下的任务行，按行 id（任务 id）筛出当前任务的处理人。
-// 同一任务可能有多行（多处理人），全部保留。
-function mapHandlers(rows: TwRow[], taskId: string): TaskHandler[] {
-  return rows
-    .filter((r) => str(r.id) === taskId)
-    .map((r) => {
-      const name = decodeField(r.username);
-      const st = decodeField(r.status);
-      return {
-        username: name.value || name.text,
-        maxHour: toNum(r.max_hour),
-        status:
-          st.text && !/^\d+$/.test(st.text) ? st.text : STATUS_TEXT[st.value] || st.value,
-      };
-    });
+// getByDemand 返回该需求下的全部任务行，一行对应一个任务的开发人。
+// 平台模型是 1 任务 = 1 开发人，需求拆成几个任务就有几个处理人，全部保留；
+// taskId 用于前端标出当前任务所在行。
+function mapHandlers(rows: TwRow[]): TaskHandler[] {
+  return rows.map((r) => {
+    const name = decodeField(r.username);
+    const st = decodeField(r.status);
+    return {
+      taskId: str(r.id),
+      username: name.value || name.text,
+      maxHour: toNum(r.max_hour),
+      status:
+        st.text && !/^\d+$/.test(st.text) ? st.text : STATUS_TEXT[st.value] || st.value,
+    };
+  });
 }
 
 export function rowToTask(
@@ -189,7 +189,7 @@ export function rowToTask(
     module: str(pick("module")),
     customerName: str(pick("customer_name")),
     assignee: str(pick("username")),
-    handlers: mapHandlers(demandTasks, id),
+    handlers: mapHandlers(demandTasks),
     twStatus: statusLabel(row, detail),
     leval: decodeField(pick("leval")).text,
     taskType: decodeField(pick("task_type")).text,

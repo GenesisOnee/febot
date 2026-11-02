@@ -91,6 +91,10 @@ export default function TaskTabs({ task }: { task: Task }) {
       </TabsContent>
       <TabsContent value="handlers">
         {task.handlers.length ? (
+          <>
+          <p className="mb-2 text-xs text-muted-foreground">
+            同一需求下全部任务的处理人（高亮行为当前任务）
+          </p>
           <div className="max-h-72 overflow-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead>
@@ -102,8 +106,20 @@ export default function TaskTabs({ task }: { task: Task }) {
               </thead>
               <tbody>
                 {task.handlers.map((h, i) => (
-                  <tr key={i} className="border-b last:border-0">
-                    <td className="px-3 py-2">{h.username || "-"}</td>
+                  <tr
+                    key={i}
+                    className={`border-b last:border-0 ${
+                      h.taskId === task.id ? "bg-muted/30" : ""
+                    }`}
+                  >
+                    <td className="px-3 py-2">
+                      {h.username || "-"}
+                      {h.taskId === task.id && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">
+                          （当前任务）
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">
                       {h.maxHour ?? "-"}
                     </td>
@@ -113,6 +129,7 @@ export default function TaskTabs({ task }: { task: Task }) {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <p className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
             （无处理人，重新同步任务后可见）
