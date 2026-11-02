@@ -249,7 +249,9 @@ export default function DiffPanel({
           )}
           {!loadingPatch && patchHtml && (
             <div
-              className="diff2html-wrapper text-xs"
+              // relative 是必需的：diff2html 的行号是 position:absolute，没有定位祖先时
+              // 会以页面为包含块——滚动时行号原地不动，还会把 document 撑到整份 diff 的高度
+              className="diff2html-wrapper relative text-xs"
               // diff2html 输出的是转义后的 diff HTML
               dangerouslySetInnerHTML={{ __html: patchHtml }}
             />
