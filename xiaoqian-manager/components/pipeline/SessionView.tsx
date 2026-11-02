@@ -58,9 +58,14 @@ export default function SessionView({
 
   const termApi = useRef<TerminalApi | null>(null);
   const pendingOutput = useRef("");
+  // xterm 还没初始化时收到的屏幕快照：初始化后整屏写入，不能和 pendingOutput 混在一起
+  const pendingScreen = useRef<string | null>(null);
   const lastSeq = useRef<number | undefined>(undefined);
   const wsRef = useRef<WebSocket | null>(null);
   const lastStatus = useRef<RunStatus>(initialRun.status);
+  // 终端真实尺寸：WS 未连上时也先记住，onopen 后立即补发，避免 PTY 停在启动时的默认尺寸
+  const lastSize = useRef<{ cols: number; rows: number } | null>(null);
+  const sentSize = useRef<{ cols: number; rows: number } | null>(null);
 
   // ---------- 首屏时间线 ----------
   useEffect(() => {
@@ -96,8 +101,25 @@ export default function SessionView({
       switch (msg.type) {
         case "snapshot": {
           setRun(msg.run);
+          if (typeof msg.screen === "string") {
+            // 服务端影子终端的屏幕快照：整屏替换，不能再叠加原始输出回放
+            pendingOutput.current = "";
+            const api = termApi.current;
+            if (api) {
+              api.reset();
+              api.write(msg.screen);
+            } else {
+              pendingScreen.current = msg.screen;
+            }
+            if (msg.truncated) {
+              setNotice("终端输出已超出缓冲上限，只恢复了最近部分内容。");
+            }
+            return;
+          }
           if (msg.truncated) {
+            // 缓冲已滚出头部：先清屏再回放，否则相对光标定位会叠在旧内容上
             termApi.current?.reset();
+            setNotice("终端输出已超出缓冲上限，只恢复了最近部分内容。");
           }
           return;
         }
@@ -168,6 +190,13 @@ export default function SessionView({
           if (closed) return;
           attempt = 0;
           setConnected(true);
+          // 先发尺寸再 attach：服务端用影子终端序列化快照，必须按客户端尺寸出图；
+          // 这条同时补上 WS 建立前丢掉的首帧 resize。
+          const size = lastSize.current;
+          if (size) {
+            send({ type: "resize", runId, cols: size.cols, rows: size.rows });
+            sentSize.current = size;
+          }
           send({
             type: "attach",
             runId,
@@ -248,14 +277,28 @@ export default function SessionView({
   }, [runId]);
 
   const sendResize = useCallback((cols: number, rows: number) => {
+    lastSize.current = { cols, rows };
+    // 尺寸没变不重复发：无谓的 SIGWINCH 会让 TUI 整屏重绘
+    const sent = sentSize.current;
+    if (sent && sent.cols === cols && sent.rows === rows) return;
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "resize", runId, cols, rows } satisfies ClientMessage));
+      sentSize.current = { cols, rows };
     }
   }, [runId]);
 
   const handleReady = useCallback((api: TerminalApi) => {
     termApi.current = api;
+    const screen = pendingScreen.current;
+    if (screen !== null) {
+      // 屏幕快照是整屏状态，先清屏再写，且不使用之前缓存的增量输出
+      pendingScreen.current = null;
+      pendingOutput.current = "";
+      api.reset();
+      api.write(screen);
+      return;
+    }
     if (pendingOutput.current) {
       api.write(pendingOutput.current);
       pendingOutput.current = "";
@@ -325,7 +368,7 @@ export default function SessionView({
   const canCancel = live || run.pid !== null;
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] min-h-[560px] flex-col gap-2 p-3">
+    <div className="flex h-[calc(100vh-3.5rem)] min-h-0 flex-col gap-2 overflow-hidden p-3">
       {/* 头部 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button asChild variant="ghost" size="sm">
@@ -379,8 +422,8 @@ export default function SessionView({
       )}
 
       {/* 主体：终端 + diff */}
-      <div className="grid min-h-0 flex-1 gap-2 grid-rows-[minmax(300px,1fr)_minmax(260px,1fr)] lg:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1">
-        <div className="min-h-0">
+      <div className="grid min-h-0 flex-1 gap-2 grid-rows-[minmax(0,1.5fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1">
+        <div className="min-h-0 overflow-hidden">
           <TerminalPane onData={sendInput} onResize={sendResize} onReady={handleReady} />
         </div>
         <DiffPanel

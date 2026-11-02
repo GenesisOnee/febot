@@ -268,9 +268,19 @@ wss.on("connection", (ws: WebSocket) => {
       switch (msg.type) {
         case "attach": {
           if (!msg.runId) return;
-          client.attached.add(msg.runId);
-          const { messages } = manager.replay(msg.runId, msg.lastSeq);
-          for (const m of messages) ws.send(JSON.stringify(m));
+          const runId = msg.runId;
+          // 快照要等影子终端刷完输出，属于异步计算。算完再挂进 attached，
+          // 否则期间推送的现场事件会插在快照前面，被客户端的 reset 冲掉。
+          void manager
+            .replay(runId, msg.lastSeq)
+            .then(({ messages }) => {
+              if (ws.readyState !== WebSocket.OPEN) return;
+              client.attached.add(runId);
+              for (const m of messages) ws.send(JSON.stringify(m));
+            })
+            .catch((e) => {
+              console.error("[runner] attach 回放失败", runId, e);
+            });
           return;
         }
         case "detach":

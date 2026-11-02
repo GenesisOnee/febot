@@ -3,6 +3,9 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import * as pty from "node-pty";
+import * as headlessPkg from "@xterm/headless";
+import { SerializeAddon } from "@xterm/addon-serialize";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { watch, type FSWatcher } from "chokidar";
 import type {
   DiffFile,
@@ -43,6 +46,15 @@ import { countChanged, headSha, listDiff, readPatch, rejectFile } from "./git";
 // 输出/状态/时间线共享同一单调 seq（按 run 递增），用于断线补发。
 // 输出另受 256KB 环形缓冲限制，滚出部分以「截断」快照替代。
 
+// @xterm/headless 是 CJS 包且没有 exports 字段：ESM 下 Node 只暴露 default，
+// 直接 `import { Terminal }` 会在运行时抛 "does not provide an export named 'Terminal'"。
+type HeadlessTerminalCtor = typeof import("@xterm/headless").Terminal;
+type HeadlessTerminalInstance = InstanceType<HeadlessTerminalCtor>;
+const HeadlessTerminal: HeadlessTerminalCtor | undefined =
+  (headlessPkg as unknown as { Terminal?: HeadlessTerminalCtor }).Terminal ??
+  (headlessPkg as unknown as { default?: { Terminal?: HeadlessTerminalCtor } }).default
+    ?.Terminal;
+
 const OUTPUT_LIMIT_BYTES = 256 * 1024;
 const OUTPUT_CHUNK_CHARS = 16 * 1024;
 const HISTORY_LIMIT = 8000;
@@ -77,6 +89,15 @@ interface Session {
   seq: number;
   history: HistoryEntry[];
   outputBytes: number;
+  /** 环形缓冲是否丢弃过输出：attach 时据此如实标记 truncated */
+  outputEvicted: boolean;
+  /** 影子终端：只消费输出，attach 时序列化屏幕快照代替原始字节流回放 */
+  headless: HeadlessTerminalInstance | null;
+  serializer: SerializeAddon | null;
+  /** 已入队但 headless 尚未处理完的写入数 */
+  headlessPending: number;
+  /** headless 消化完队列后要唤醒的 attach 等待者 */
+  headlessWaiters: (() => void)[];
   tailer: EventsTailer | null;
   markerWatcher: FSWatcher | null;
   workspaceWatcher: FSWatcher | null;
@@ -170,6 +191,7 @@ export class RunManager {
       // 同任务重跑：上一个 PTY 还活着说明会话仍在使用；已退出则丢弃旧会话，
       // 终态数据在 data/runs 里，重放不受影响。
       if (!existing.exited) throw new RepoBusyError(taskId);
+      this.disposeHeadless(existing);
       this.sessions.delete(taskId);
     }
 
@@ -207,6 +229,11 @@ export class RunManager {
       seq: 0,
       history: [],
       outputBytes: 0,
+      outputEvicted: false,
+      headless: null,
+      serializer: null,
+      headlessPending: 0,
+      headlessWaiters: [],
       tailer: null,
       markerWatcher: null,
       workspaceWatcher: null,
@@ -245,6 +272,7 @@ export class RunManager {
 
   private spawnPty(session: Session): void {
     const { run } = session;
+    this.initHeadless(session);
     const env: Record<string, string> = {};
     for (const [k, v] of Object.entries(process.env)) {
       if (typeof v === "string") env[k] = v;
@@ -273,6 +301,7 @@ export class RunManager {
     });
 
     child.onData((data) => {
+      this.writeHeadless(session, data);
       for (const chunk of chunkOutput(data)) {
         this.emit(session, { type: "output", runId: run.id, seq: 0, data: chunk });
       }
@@ -302,6 +331,82 @@ export class RunManager {
       this.finalize(session, "failed", "会话超时（默认 6h）");
       this.killProcess(session);
     }, Number(process.env.XQ_RUN_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS);
+  }
+
+  // ---------- 影子终端（屏幕快照） ----------
+
+  /** 影子终端只消费输出，作为 attach 时序列化屏幕状态的唯一事实源。失败则退回原始回放。 */
+  private initHeadless(session: Session): void {
+    try {
+      if (!HeadlessTerminal) throw new Error("@xterm/headless 未导出 Terminal");
+      const term = new HeadlessTerminal({
+        cols: session.run.cols,
+        rows: session.run.rows,
+        scrollback: 8000,
+        allowProposedApi: true,
+      });
+      const serializer = new SerializeAddon();
+      term.loadAddon(serializer as unknown as Parameters<typeof term.loadAddon>[0]);
+      // 必须和浏览器端用同一张字符宽度表，否则快照里 CJK 的列位置对不上
+      term.loadAddon(
+        new Unicode11Addon() as unknown as Parameters<typeof term.loadAddon>[0]
+      );
+      term.unicode.activeVersion = "11";
+      session.headless = term;
+      session.serializer = serializer;
+    } catch (e) {
+      console.error("[pty] 影子终端初始化失败，回退到原始输出回放", e);
+      session.headless = null;
+      session.serializer = null;
+    }
+  }
+
+  private writeHeadless(session: Session, data: string): void {
+    const term = session.headless;
+    if (!term || data.length === 0) return;
+    session.headlessPending += 1;
+    term.write(data, () => {
+      session.headlessPending = Math.max(0, session.headlessPending - 1);
+      if (session.headlessPending === 0 && session.headlessWaiters.length > 0) {
+        const waiters = session.headlessWaiters.splice(0);
+        for (const wake of waiters) wake();
+      }
+    });
+  }
+
+  /**
+   * 等影子终端消化完已入队的输出后，序列化「滚动缓冲 + 当前屏幕」。
+   * 返回 null 表示影子终端不可用，调用方退回原始输出回放。
+   */
+  private async serializeScreen(session: Session): Promise<string | null> {
+    if (!session.headless || !session.serializer) return null;
+    if (session.headlessPending > 0) {
+      // 输出持续涌入时最多等 300ms：宁可少最后几帧，也不能卡住 attach
+      await Promise.race([
+        new Promise<void>((resolve) => session.headlessWaiters.push(resolve)),
+        new Promise<void>((resolve) => setTimeout(resolve, 300)),
+      ]);
+    }
+    try {
+      // 限制回放体积：只带最近 2000 行滚动缓冲
+      return session.serializer.serialize({ scrollback: 2000 });
+    } catch (e) {
+      console.error("[pty] 屏幕序列化失败", e);
+      return null;
+    }
+  }
+
+  private disposeHeadless(session: Session): void {
+    const term = session.headless;
+    session.headless = null;
+    session.serializer = null;
+    const waiters = session.headlessWaiters.splice(0);
+    for (const wake of waiters) wake();
+    try {
+      term?.dispose();
+    } catch {
+      // 已释放
+    }
   }
 
   private noteForExit(code: number | null): string {
@@ -515,14 +620,26 @@ export class RunManager {
       if (idx === -1) break;
       const [removed] = session.history.splice(idx, 1);
       session.outputBytes -= removed.outputBytes;
+      session.outputEvicted = true;
     }
     if (session.history.length > HISTORY_LIMIT) {
-      session.history.splice(0, session.history.length - HISTORY_LIMIT);
+      const removed = session.history.splice(0, session.history.length - HISTORY_LIMIT);
+      if (removed.some((h) => h.message.type === "output")) {
+        session.outputEvicted = true;
+      }
     }
   }
 
-  /** attach 补发：无 lastSeq 或已截断 → 快照 + 环形缓冲整体回放。 */
-  replay(runId: string, lastSeq?: number): { messages: ServerMessage[]; truncated: boolean } {
+  /**
+   * attach 补发。
+   * - 还能按 seq 续传：增量补发（全部类型）。
+   * - 不能续传（首次接入 / 缺失区间已滚出缓冲）：用影子终端的屏幕快照代替原始字节流回放。
+   *   影子终端不可用时退回原始输出回放。
+   */
+  async replay(
+    runId: string,
+    lastSeq?: number
+  ): Promise<{ messages: ServerMessage[]; truncated: boolean }> {
     const session = this.sessions.get(runId);
     if (!session) {
       // 历史 run（runner 重启前 / 已收口）：没有内存缓冲，只回快照，
@@ -534,17 +651,27 @@ export class RunManager {
         truncated: false,
       };
     }
-    const snapshot = (truncated: boolean): ServerMessage => ({
+    const snapshot = (truncated: boolean, screen?: string): ServerMessage => ({
       type: "snapshot",
       runId,
       seq: session.seq,
       run: session.run,
       truncated,
+      ...(screen !== undefined ? { screen } : {}),
     });
 
     const firstSeq = session.history[0]?.seq ?? session.seq + 1;
     if (lastSeq === undefined || lastSeq < firstSeq - 1) {
-      const messages: ServerMessage[] = [snapshot(lastSeq !== undefined)];
+      // TUI 的增量重绘依赖输出发出时的屏幕状态，原始字节流不能安全重放。
+      const screen = await this.serializeScreen(session);
+      if (screen !== null) {
+        const truncated = session.outputEvicted;
+        return { messages: [snapshot(truncated, screen)], truncated };
+      }
+      // 兜底：影子终端不可用，退回原始输出回放。
+      // 客户端有 lastSeq 说明它手里已有旧内容，必须 reset，避免重复写入。
+      const truncated = session.outputEvicted || lastSeq !== undefined;
+      const messages: ServerMessage[] = [snapshot(truncated)];
       for (const entry of session.history) {
         if (entry.message.type !== "output") continue;
         messages.push({
@@ -553,7 +680,7 @@ export class RunManager {
           replay: true,
         } as ServerMessage);
       }
-      return { messages, truncated: lastSeq !== undefined };
+      return { messages, truncated };
     }
 
     const messages: ServerMessage[] = [snapshot(false)];
@@ -580,6 +707,12 @@ export class RunManager {
       session.pty?.resize(session.run.cols, session.run.rows);
     } catch {
       // PTY 已退出
+    }
+    // 影子终端必须跟 PTY 同尺寸，否则序列化出的快照行列错位
+    try {
+      session.headless?.resize(session.run.cols, session.run.rows);
+    } catch {
+      // 已释放
     }
     this.persist(session);
   }
@@ -748,6 +881,7 @@ export class RunManager {
         this.finalize(session, "failed", "runner 退出");
       }
       this.killProcess(session);
+      this.disposeHeadless(session);
       await this.stopWatching(session);
     }
     this.sessions.clear();

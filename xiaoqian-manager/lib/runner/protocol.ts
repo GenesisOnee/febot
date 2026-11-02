@@ -23,7 +23,7 @@ export type ServerEvent = (
   | { type: "error"; message: string }
 ) & { runId: string; seq: number };
 
-/** attach 无 lastSeq 时的全量快照（输出回放走 256KB 环形缓冲） */
+/** attach 无 lastSeq（或缺失区间已滚出缓冲）时的全量快照 */
 export interface SnapshotEvent {
   type: "snapshot";
   runId: string;
@@ -31,6 +31,11 @@ export interface SnapshotEvent {
   run: PipelineRun;
   /** 输出已滚出缓冲时为 true */
   truncated: boolean;
+  /**
+   * 服务端影子终端序列化出的屏幕快照（含滚动缓冲）。
+   * 有值时客户端先 reset 再写入；不要再叠加原始输出回放。
+   */
+  screen?: string;
 }
 
 export type ServerMessage = ServerEvent | SnapshotEvent | { type: "pong" };

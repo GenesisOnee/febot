@@ -405,8 +405,9 @@ interface DiffFile {
 约束：
 
 - 单连接可同时 attach 多个 runId
-- **所有服务端事件按产生顺序共享同一单调 seq**；`attach` 带 `lastSeq` 时补发 `seq > lastSeq` 的**全部类型事件**；不带 `lastSeq` 则输出回放最近 256KB，并推一次全量快照（当前 status + git 变更数）
-- 输出按 16KB 分片，避免单帧过大；输出回放仍受 256KB 环形缓冲限制（已滚出部分以快照 + 「已截断」提示替代）
+- **所有服务端事件按产生顺序共享同一单调 seq**；`attach` 带 `lastSeq` 时补发 `seq > lastSeq` 的**全部类型事件**；不带 `lastSeq`（或缺失区间已滚出缓冲）则推一次全量快照（当前 status + git 变更数），并附带 runner 侧 xterm-headless 影子终端序列化出的**屏幕快照**（`snapshot.screen`，含滚动缓冲）——TUI 的增量重绘依赖发出时的屏幕状态，原始字节流回放会错位，不能直接用
+- 输出按 16KB 分片，避免单帧过大；影子终端不可用时退回 256KB 环形缓冲的原始回放（已滚出部分以快照 + 「已截断」提示替代）
+- `resize` 必须先于 `attach` 发送，影子终端按客户端尺寸序列化，否则快照行列错位
 
 ### 6.3 runner 内部接口
 
@@ -489,7 +490,8 @@ child.onExit(({ exitCode }) => void finish(runId, exitCode));
 
 - 每个 run 维护一个 256KB 环形缓冲（`Uint8Array` 或字符串数组，按字节裁剪）
 - 所有服务端事件共享同一单调 `seq`（见 §6.2），客户端记录已收到的最大 `seq`
-- 重连时 `attach { lastSeq }`，服务端补发 `seq > lastSeq` 的全部类型事件；若输出已滚出缓冲，该部分以快照 + 「已截断」提示替代
+- 每个 run 另挂一个 xterm-headless 影子终端，消费与 PTY 相同的输出；`attach` 无法按 seq 续传时序列化「滚动缓冲 + 当前屏幕」作为快照（`snapshot.screen`）
+- 重连时 `attach { lastSeq }`，服务端补发 `seq > lastSeq` 的全部类型事件；若缺失区间已滚出缓冲，改用屏幕快照整体恢复（客户端先 reset 再写入），并按 `truncated` 给出提示
 - 页面关闭 **不** 终止会话；只有显式终止或进程退出才结束
 
 ### 7.5 完成判定
@@ -811,12 +813,14 @@ const ATTENTION_WEIGHT = {
 ## 附录 A｜新增依赖
 
 ```bash
-yarn add node-pty @xterm/xterm @xterm/addon-fit diff2html ws chokidar
+yarn add node-pty @xterm/xterm @xterm/addon-fit @xterm/addon-unicode11 @xterm/addon-webgl diff2html ws chokidar
 yarn add -D @types/ws
 ```
 
 - `node-pty`：PTY（原生模块）
 - `@xterm/xterm` + `@xterm/addon-fit`：终端渲染
+- `@xterm/addon-unicode11`：宽字符宽度（浏览器端与影子终端必须同一张表，否则快照列位错开）
+- `@xterm/addon-webgl`：WebGL 渲染器，加载失败/上下文丢失自动回落 DOM
 - `diff2html`：diff 渲染（若后续需要更强交互，再评估 Monaco）
 - `ws`：WebSocket 服务端
 - `chokidar`：事件文件 tail 与工作区文件监听
@@ -841,4 +845,4 @@ yarn add -D @types/ws
 ## 附录 C｜重点测试项（实施中由负责人实测，Phase 0 spike 必测）
 
 1. **中文 IME 输入**：xterm.js 内用系统中文输入法（微软拼音）输入中文，候选窗定位与上屏正确。xterm.js 历史痛点，输出不乱码不代表输入可用。
-2. **TUI 兼容与回放性能**：Claude Code TUI 在 ConPTY + xterm.js 下的 Ctrl+C、大段粘贴、resize 重排、alt-screen 渲染，以及 256KB 输出回放的流畅度（分片写入 + 客户端渲染瓶颈）。
+2. **TUI 兼容与回放性能**：Claude Code TUI 在 ConPTY + xterm.js 下的 Ctrl+C、大段粘贴、resize 重排、alt-screen 渲染，以及刷新/重连后屏幕快照恢复的正确性与写入耗时（影子终端序列化 + 客户端整屏写入）。

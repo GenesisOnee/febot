@@ -41,10 +41,13 @@ export default function TerminalPane({
     let cleanup: (() => void) | null = null;
 
     void (async () => {
-      const [{ Terminal }, { FitAddon }] = await Promise.all([
-        import("@xterm/xterm"),
-        import("@xterm/addon-fit"),
-      ]);
+      const [{ Terminal }, { FitAddon }, { Unicode11Addon }, { WebglAddon }] =
+        await Promise.all([
+          import("@xterm/xterm"),
+          import("@xterm/addon-fit"),
+          import("@xterm/addon-unicode11"),
+          import("@xterm/addon-webgl"),
+        ]);
       if (disposed || !hostRef.current) return;
 
       const term = new Terminal({
@@ -65,6 +68,25 @@ export default function TerminalPane({
       const fit = new FitAddon();
       term.loadAddon(fit);
       term.open(hostRef.current);
+
+      // 中文/emoji 宽字符按 Unicode 11 计算。默认 V6 表把很多宽字符当 1 格，
+      // 会让 TUI 的边框、光标和输入锚点整体错位
+      try {
+        term.loadAddon(new Unicode11Addon());
+        term.unicode.activeVersion = "11";
+      } catch {
+        // 退回默认 Unicode V6 宽度
+      }
+
+      // WebGL 渲染器：TUI 整屏重绘明显更快；上下文丢失时自动回落 DOM 渲染器
+      try {
+        const webgl = new WebglAddon();
+        webgl.onContextLoss(() => webgl.dispose());
+        term.loadAddon(webgl);
+      } catch {
+        // 不支持 WebGL2，保留默认 DOM 渲染器
+      }
+
       try {
         fit.fit();
       } catch {
@@ -73,18 +95,42 @@ export default function TerminalPane({
       termRef.current = term;
       fitRef.current = fit;
 
+      let lastCols = -1;
+      let lastRows = -1;
+      let raf = 0;
       const emitResize = () => {
         try {
           fit.fit();
         } catch {
           // ignore
         }
+        // 只有行列真的变了才回调：避免无谓的 PTY resize 触发 TUI 整屏重绘
+        if (term.cols === lastCols && term.rows === lastRows) return;
+        lastCols = term.cols;
+        lastRows = term.rows;
         resizeRef.current(term.cols, term.rows);
+      };
+      // 同一帧内的多次 ResizeObserver 回调合并成一次 fit
+      const scheduleResize = () => {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          if (disposed) return;
+          emitResize();
+        });
       };
       emitResize();
 
+      // 字体加载完成后字宽会变，必须重新 fit：否则算出的 cols/rows 偏大，
+      // 内容溢出 + 光标/输入锚点错位
+      if (typeof document !== "undefined" && document.fonts) {
+        void document.fonts.ready.then(() => {
+          if (!disposed) scheduleResize();
+        });
+      }
+
       const sub = term.onData((data) => dataRef.current(data));
-      const ro = new ResizeObserver(() => emitResize());
+      const ro = new ResizeObserver(() => scheduleResize());
       ro.observe(hostRef.current);
       term.focus();
 
@@ -107,6 +153,7 @@ export default function TerminalPane({
       });
 
       cleanup = () => {
+        if (raf) cancelAnimationFrame(raf);
         sub.dispose();
         ro.disconnect();
         term.dispose();
@@ -124,7 +171,7 @@ export default function TerminalPane({
   }, []);
 
   return (
-    <div className="relative h-full min-h-[320px] w-full overflow-hidden rounded-lg bg-[#0f1115]">
+    <div className="relative h-full min-h-0 w-full overflow-hidden rounded-lg bg-[#0f1115]">
       <div ref={hostRef} className="h-full w-full" />
     </div>
   );
