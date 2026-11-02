@@ -18,10 +18,12 @@ const Body = z
     plannedDescription: z.string().optional(),
     repo: z.string().optional(),
     targetBranch: z.string().optional(),
+    // 直接完成：跳过提交/推送/cherry-pick，只把协作平台中的任务标记完成
+    skipGit: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
-    // 部署节点完成要动代码，必须先选好仓库与目标分支
-    if (v.stageKey === "deploy" && v.status === "done") {
+    // 部署节点完成要动代码，必须先选好仓库与目标分支；直接完成模式不动代码
+    if (v.stageKey === "deploy" && v.status === "done" && !v.skipGit) {
       if (!v.repo) {
         ctx.addIssue({ code: "custom", message: "部署节点需要选择仓库", path: ["repo"] });
       }
@@ -54,17 +56,35 @@ export async function PATCH(
       console.warn(`[stage] ${id} 请求体校验失败`, parsed.error.issues);
       return NextResponse.json({ error: "请求体校验失败" }, { status: 400 });
     }
-    const { stageKey, status, owner, note, plannedDescription, repo, targetBranch } =
-      parsed.data;
-    console.log(`[stage] ${id} 收到请求`, { stageKey, status, repo, targetBranch });
+    const {
+      stageKey,
+      status,
+      owner,
+      note,
+      plannedDescription,
+      repo,
+      targetBranch,
+      skipGit,
+    } = parsed.data;
+    console.log(`[stage] ${id} 收到请求`, {
+      stageKey,
+      status,
+      repo,
+      targetBranch,
+      skipGit,
+    });
     const existing = readTasks().tasks.find((t) => t.id === id);
     if (!existing) {
       console.warn(`[stage] ${id} 任务不存在`);
       return NextResponse.json({ error: "task not found" }, { status: 404 });
     }
-    // 部署节点完成：先把该任务的代码提交/推送/cherry-pick 到目标分支；协作平台任务点完成
+    // 部署节点完成：先把该任务的代码提交/推送/cherry-pick 到目标分支；协作平台任务点完成。
+    // skipGit = 直接完成：不碰仓库代码，只写协作平台并把三个节点一并标为已完成。
+    const directComplete = stageKey === "deploy" && status === "done" && !!skipGit;
     if (stageKey === "deploy" && status === "done") {
-      console.log(`[stage] ${id} 进入部署流程`);
+      console.log(
+        `[stage] ${id} 进入${directComplete ? "直接完成" : "部署"}流程`
+      );
       // 已部署过就拒绝重复提交，避免重跑 commit/push/cherry-pick
       const deployStage = existing.stages.find((s) => s.key === "deploy");
       if (deployStage?.status === "done") {
@@ -74,17 +94,21 @@ export async function PATCH(
           { status: 409 }
         );
       }
-      // 任一步失败就中断 —— 不写协作平台，也不落本地 tasks.json
-      console.log(`[stage] ${id} 步骤1/3 提交/推送/cherry-pick 开始`, {
-        repo,
-        targetBranch,
-      });
-      const gitResult = await runDeployGit({
-        repo: repo as string,
-        targetBranch: targetBranch as string,
-        message: buildDeployMessage(id, existing.title),
-      });
-      console.log(`[stage] ${id} 步骤1/3 提交/推送/cherry-pick 完成`, gitResult);
+      if (!directComplete) {
+        // 任一步失败就中断 —— 不写协作平台，也不落本地 tasks.json
+        console.log(`[stage] ${id} 步骤1/3 提交/推送/cherry-pick 开始`, {
+          repo,
+          targetBranch,
+        });
+        const gitResult = await runDeployGit({
+          repo: repo as string,
+          targetBranch: targetBranch as string,
+          message: buildDeployMessage(id, existing.title),
+        });
+        console.log(`[stage] ${id} 步骤1/3 提交/推送/cherry-pick 完成`, gitResult);
+      } else {
+        console.log(`[stage] ${id} 步骤1/3 已跳过（直接完成，不操作仓库代码）`);
+      }
       // 先写协作平台；失败（含登录失效）则中断，不落本地 tasks.json
       console.log(`[stage] ${id} 步骤2/3 回写协作平台 开始`);
       await pushDevOperation(id, existing.plannedDescription);
@@ -99,12 +123,14 @@ export async function PATCH(
         ? { plannedDescription }
         : {}),
       stages: t.stages.map((s) => {
-        if (s.key !== stageKey) return s;
+        // 直接完成：任务已在平台闭环，三个节点一起收口，避免进度停在 1/3
+        const isTarget = s.key === stageKey || directComplete;
+        if (!isTarget) return s;
         return {
           ...s,
           status,
-          owner: owner ?? s.owner,
-          note: note ?? s.note,
+          owner: s.key === stageKey ? (owner ?? s.owner) : s.owner,
+          note: s.key === stageKey ? (note ?? s.note) : s.note,
           startedAt:
             status === "pending" ? null : (s.startedAt ?? now),
           finishedAt:

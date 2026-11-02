@@ -41,12 +41,14 @@ export default function TaskRow({
   run,
   onOpenStage,
   onStartPipeline,
+  onDirectComplete,
   onOpenRun,
 }: {
   task: Task;
   run?: PipelineRun;
   onOpenStage: (stage: Stage) => void;
   onStartPipeline: (taskId: string) => void;
+  onDirectComplete: (taskId: string) => void;
   onOpenRun?: (runId: string) => void;
 }) {
   const doneCount = task.stages.filter((s) => s.status === "done").length;
@@ -143,11 +145,12 @@ export default function TaskRow({
                 onOpen={onOpenStage}
                 onStartPipeline={() => onStartPipeline(task.id)}
                 startDisabled={startDisabled}
+                onDirectComplete={() => onDirectComplete(task.id)}
               />
             </div>
           </div>
           <p className="mt-1 px-2 text-xs text-muted-foreground">
-            点击节点可更新阶段状态；点「计划」节点可整理需求描述，点「写代码」节点 ▶ 可开始流水线（AI 编码+审查+修复）
+            点击节点可更新阶段状态；点「计划」节点可整理需求描述，点「写代码」节点 ▶ 可开始流水线（AI 编码+审查+修复）；点「上传部署」节点 ✓ 可直接完成（不操作仓库代码，只完成协作平台任务）
           </p>
         </div>
         <div className="mt-3">

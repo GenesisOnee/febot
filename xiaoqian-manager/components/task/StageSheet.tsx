@@ -127,7 +127,8 @@ export default function StageSheet({
             {task?.title || ""}
           </SheetDescription>
         </div>
-        <div className="space-y-4 px-4">
+        {/* 内容较长（尤其部署节点）时只滚动表单区，标题与底部按钮保持可见 */}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4">
           <div className="space-y-2">
             <Label>状态</Label>
             <Select
@@ -230,6 +231,10 @@ export default function StageSheet({
               <p className="text-xs text-muted-foreground">
                 标记为「已完成」时会把该仓的改动提交并推送，再把这一次提交
                 cherry-pick 到目标分支。失败则不写平台、不落库。
+              </p>
+              <p className="text-xs text-muted-foreground">
+                若本次不需要操作仓库代码，可直接点节点卡片右下角的 ✓
+                完成：只把协作平台中的任务标记为已完成。
               </p>
               {repo && gitOptions.jenkins[repo] && (
                 <p className="text-sm">

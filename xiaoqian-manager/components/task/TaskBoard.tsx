@@ -84,6 +84,31 @@ export default function TaskBoard({
     return () => clearInterval(timer);
   }, [hasLiveRun, router]);
 
+  // 直接完成：不提交/推送代码，只把协作平台里的任务标记完成；
+  // 本地三个节点一并收口，任务进度不再停在 1/3。
+  const completeDirectly = async (taskId: string) => {
+    const ok = window.confirm(
+      "直接完成会跳过代码提交、推送与 cherry-pick，只把协作平台中的任务标记为已完成。\n「计划」「写代码」「上传部署」三个节点会一起标为已完成。\n\n确定继续？"
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/stage`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ stageKey: "deploy", status: "done", skipGit: true }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(json.error || "直接完成失败");
+        return;
+      }
+      toast.success("任务已在协作平台完成");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "直接完成失败");
+    }
+  };
+
   const startPipeline = async (taskId: string) => {
     // 通知权限需要用户手势；启动按钮正好是手势上下文
     requestNotificationPermission();
@@ -186,6 +211,7 @@ export default function TaskBoard({
               run={byTask[t.id]}
               onOpenStage={(stage) => setSheet({ taskId: t.id, stage })}
               onStartPipeline={startPipeline}
+              onDirectComplete={completeDirectly}
               onOpenRun={(runId) => router.push(`/runs/${encodeURIComponent(runId)}`)}
             />
           ))}
