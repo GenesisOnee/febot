@@ -1,0 +1,64 @@
+appId: com.example.febot
+productName: febot
+copyright: Copyright © 2026 febot
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+extraResources:
+  # electron-builder 会排除 extraResources 源目录根部的 node_modules，
+  # 所以 standalone 的依赖单独拷贝（否则运行时 Cannot find module 'next'）。
+  - from: resources/next
+    to: next
+    filter:
+      - "**/*"
+      - "!node_modules/**"
+  - from: resources/next/node_modules
+    to: next/node_modules
+    filter:
+      - "**/*"
+  - from: resources/runner
+    to: runner
+    filter:
+      - "**/*"
+      - "!node_modules/**"
+  - from: resources/runner/node_modules
+    to: runner/node_modules
+    filter:
+      - "**/*"
+  - from: resources/runtime
+    to: runtime
+  - from: resources/node
+    to: node
+  - from: resources/runtime-manifest.json
+    to: runtime-manifest.json
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: febot-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: febot
+  # 卸载保留工作区与 %APPDATA%\febot 设置
+  deleteAppDataOnUninstall: false
+
+# 内网静态源；替换成实际地址后 latest.yml 与增量更新才生效
+publish:
+  provider: generic
+  url: https://updates.example.com/febot/

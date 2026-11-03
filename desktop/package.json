@@ -1,0 +1,39 @@
+{
+  "name": "febot-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "febot 桌面端应用：Electron 壳 + Next standalone + runner 本地服务守护",
+  "main": "out/main/index.js",
+  "author": "febot",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
+    "typecheck": "yarn typecheck:node && yarn typecheck:web",
+    "test": "vitest run",
+    "prepare-runtime": "node scripts/prepare-runtime.mjs",
+    "prepare-runtime:fast": "node scripts/prepare-runtime.mjs --skip-build --skip-node",
+    "make-icon": "node scripts/make-icon.mjs",
+    "dist": "yarn prepare-runtime && electron-vite build && electron-builder --win nsis",
+    "dist:dir": "yarn prepare-runtime && electron-vite build && electron-builder --win --dir",
+    "dist:fast": "yarn prepare-runtime:fast && electron-vite build && electron-builder --win --dir"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.11",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.7"
+  },
+  "packageManager": "yarn@1.22.19"
+}

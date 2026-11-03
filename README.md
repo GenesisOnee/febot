@@ -24,7 +24,7 @@
 - **事实层**：`code-indexer` 静态索引器 —— 路由 / 组件树 / API 域 / store / 事件 / 权限 / 存储。
 - **记忆层**：本机 Docker 里的 Hindsight（见第四部分 §12–§15）—— 流水线存「研发流程经验」，助手存「业务知识」，**两套 bank 分开**。
 
-其余：`swagger-mcp-server`（实时 API 文档）供流水线用；[om/](om/) 是**独立**的发版看板，不参与任何主线。
+其余：`swagger-mcp-server`（实时 API 文档）供流水线用；[desktop/](desktop/) 是可选的 Windows 桌面壳，把宿主和 runner 装成双击即用的应用（见 §16）；[om/](om/) 是**独立**的发版看板，不参与任何主线。
 
 ---
 
@@ -66,7 +66,7 @@ yarn setup
 
    生成物**全部 gitignore**，每个团队各填各的；`example/` 下的模板是入库的公共样板，**不要直接改**。
 
-2. 安装三个子项目的依赖：`code-indexer` / `xiaoqian-manager` / `swagger-mcp-server`。
+2. 安装四个子项目的依赖：`code-indexer` / `xiaoqian-manager` / `swagger-mcp-server` / `desktop`。不需要桌面端时可单独执行 `yarn --cwd desktop install`，或从根 `setup` 里去掉 `desktop`。
 
 ## 0.3 填配置（`febot.config.json`）
 
@@ -128,11 +128,14 @@ cd example-repo && git checkout dev
 yarn dev          # om 看板 :3000 + xiaoqian-manager :3010（并行）
 yarn om           # 只起发版看板 :3000
 yarn xiaoqian     # 只起 xiaoqian-manager :3010
+yarn desktop:dev  # 桌面端窗口（Electron 内拉起 Next + runner，见 §16）
 yarn recon <别名>  # 生成某需求的事实底稿 docs/requirements/<别名>/recon.md
 yarn feed --plan <计划文件> [--alias R-xxxxxx] [--json] [--dry-run]  # 接入需求（解析/定仓/门禁/脚手架）
 ```
 
 浏览器打开 `http://localhost:3010`，右上角「同步」拉需求；`http://localhost:3000` 是发版看板。
+
+> 桌面端与 `yarn dev` 不能同时运行：Next 16 会检测同目录的已有 dev server。要同时验证，用 `FEBOT_DESKTOP_USE_RESOURCES=1 yarn desktop:dev` 走 `resources/` 生产布局。
 
 ## 0.6 可选：Hindsight 记忆层
 
@@ -444,6 +447,7 @@ scripts/index-query.mjs      复用索引缓存的查询入口（assistant 事�
 scripts/hindsight-memo.py    流水线侧记忆 CLI
 scripts/assistant-{memo,map,probe}.mjs   助手侧记忆 CLI / 地图 / 探针
 xiaoqian-manager/        小千管理(Next.js) —— 全部流程的宿主(①④⑤)
+desktop/                 桌面端 Electron 壳(把宿主+runner 装成 Windows 应用,见 §16)
 code-indexer/            Vue3 仓库静态索引器(CLI + MCP),两条线共用
 swagger-mcp-server/      swagger-multi MCP 补丁版服务器,②③步用
 om/                      发版看板(独立,见 §16)
@@ -613,6 +617,24 @@ P0–P4 已实施完毕（记忆 CLI / 项目地图 / 答题 skill / 按需存 /
 
 `/assistant` skill (+ `assistant-qa` subagent) ↔ `code-indexer`(事实层，现算) ↔ `Hindsight`(文档层，`assistant-*` bank)
 
+### 桌面端（desktop/）
+
+把流水线宿主装成一个 Windows 应用：用户双击启动，不用自己开终端跑 `yarn dev` / `yarn runner`。
+
+- **壳只做编排**：窗口、托盘、菜单、通知、进程守护、自动更新；业务 UI 仍是 `xiaoqian-manager`，代码零重写。
+- **构建期**：`prepare-runtime` 从 `xiaoqian-manager` 产出 Next standalone，把 runner 打成单文件，连同受管运行时资产和内置 Node 放进 `desktop/resources`。
+- **运行期**：Electron 用内置 Node 拉起两个子进程（Next + runner），注入 `FEBOT_WORKSPACE` / `FEBOT_CONFIG` / `XQ_RUNNER_*`，窗口加载 `http://127.0.0.1:<动态端口>`。
+- **工作区**：首次启动选「新建」或「接管」；业务数据全部在用户选的工作区，安装目录只读，更新不覆盖用户文件。
+- **中断**：退出或 runner 异常时，进行中的 run 记为 `interrupted`，保留现场可恢复。
+
+```bash
+yarn desktop:install   # 安装 Electron 壳依赖
+yarn desktop:dev       # 开发模式（默认跑 xiaoqian-manager 源码）
+yarn desktop:dist      # 生成 desktop/dist/febot-Setup-<version>.exe
+```
+
+细节（工作区模型、环境变量、打包踩坑、安全断言）见 [desktop/README.md](desktop/README.md)。
+
 ### 独立项目（不参与总流程）
 
 | 项目       | 是什么                                                                                            | 状态                          |
@@ -626,6 +648,7 @@ P0–P4 已实施完毕（记忆 CLI / 项目地图 / 答题 skill / 按需存 /
 - **改喂食逻辑**：编辑 `.claude/skills/pipeline-feed/SKILL.md`。
 - **改模板**：编辑 `docs/requirements/_template/*`。
 - **改 ①④⑤**：编辑 `xiaoqian-manager/`（`lib/server/git`、`lib/server/teamwork`、`components`）。
+- **改桌面端**：编辑 `desktop/src/`（`supervisor.ts` 进程守护、`workspace.ts` 工作区、`index.ts` 生命周期），详见 [desktop/README.md](desktop/README.md)。
 - **改助手行为**：编辑 `.claude/skills/assistant/SKILL.md`（编排）、`references/service-protocol.md`（答话协议）、`references/what-to-store.md`（存/不存判断）、`.claude/agents/assistant-qa.md`（隔离上下文）。
 - 三个流水线 agent 统一 `permission: acceptEdits`，如要更严，单独收紧。
 

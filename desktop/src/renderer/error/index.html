@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>febot 启动失败</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <div class="icon">!</div>
+      <h1>服务启动失败</h1>
+      <p class="lead">本地服务未能就绪。可重试、查看日志，或切换工作区后重新启动。</p>
+      <pre id="message" class="message">正在读取错误信息…</pre>
+      <div class="meta" id="meta"></div>
+      <div class="actions">
+        <button id="retry" class="btn primary">重试启动</button>
+        <button id="logs" class="btn secondary">打开日志目录</button>
+        <button id="switch" class="btn secondary">更换工作区</button>
+      </div>
+      <div id="status" class="status"></div>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

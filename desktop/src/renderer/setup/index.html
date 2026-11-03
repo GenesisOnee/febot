@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>febot 首次运行向导</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <div class="logo">f</div>
+        <div>
+          <h1>febot 桌面端</h1>
+          <p class="subtitle">首次运行向导 · 选择工作区并检查环境</p>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2><span class="step">1</span> 工作区</h2>
+        <div class="modes">
+          <label class="mode">
+            <input type="radio" name="mode" value="new" checked />
+            <span><strong>新建工作区</strong><small>复制内置运行时资产，适合全新开始</small></span>
+          </label>
+          <label class="mode">
+            <input type="radio" name="mode" value="takeover" />
+            <span><strong>接管现有目录</strong><small>不覆盖任何文件，适合 D:\febot</small></span>
+          </label>
+        </div>
+        <div class="row">
+          <input id="workspace" class="input grow" placeholder="例如 D:\febot-workspace 或 D:\febot" />
+          <button id="browse" class="btn secondary">浏览…</button>
+          <button id="check" class="btn secondary">校验</button>
+        </div>
+        <div id="checkResult" class="result hidden"></div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">2</span> 环境自检</h2>
+        <p class="hint">硬依赖：Git、Claude Code、Git Bash；软依赖：Python、Docker、yarn。</p>
+        <button id="doctor" class="btn secondary">运行检查</button>
+        <ul id="doctorResult" class="doctor"></ul>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">3</span> 目标仓配置 <span class="muted">可选，稍后可编辑 febot.config.json</span></h2>
+        <label class="field">
+          <span>repoRoot</span>
+          <input id="repoRoot" class="input" placeholder="gitlab 或 D:\repos" />
+        </label>
+        <label class="field">
+          <span>repos（逗号分隔）</span>
+          <input id="repos" class="input" placeholder="demo-product-h-web, demo-product-i-ui" />
+        </label>
+        <label class="field">
+          <span>默认分支</span>
+          <input id="branch" class="input" placeholder="dev" />
+        </label>
+      </section>
+
+      <footer class="footer">
+        <div id="status" class="status">准备就绪</div>
+        <button id="finish" class="btn primary">开始使用</button>
+      </footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
