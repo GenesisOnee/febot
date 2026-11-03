@@ -161,9 +161,12 @@ export class RunManager {
 
   // ---------- 启动 / 清扫 ----------
 
-  /** 启动清扫：非终态 run 一律 failed，注册表从零重建。 */
+  /**
+   * 启动清扫：非终态 run 一律置 interrupted（保留现场，供桌面端恢复），
+   * 注册表从零重建。仅真实执行错误才由 finalize 置 failed。
+   */
   cleanupStale(): number {
-    let failed = 0;
+    let interrupted = 0;
     for (const file of listRunFiles()) {
       let run: PipelineRun;
       try {
@@ -171,16 +174,16 @@ export class RunManager {
       } catch {
         continue;
       }
-      if (!run?.id || isTerminalStatus(run.status)) continue;
-      run.status = "failed";
-      run.error = "runner 重启";
+      if (!run?.id || isTerminalStatus(run.status) || run.status === "interrupted") continue;
+      run.status = "interrupted";
+      run.error = "runner 重启（现场保留，可恢复会话）";
       run.endedAt = new Date().toISOString();
       run.pid = null;
       atomicWrite(file, JSON.stringify(run, null, 2));
-      failed += 1;
+      interrupted += 1;
     }
     rebuildRegistry([]);
-    return failed;
+    return interrupted;
   }
 
   start(req: StartRunRequest): PipelineRun {
@@ -505,7 +508,7 @@ export class RunManager {
     const { run } = session;
     session.finalized = true;
     run.status = status;
-    run.error = status === "failed" ? note : null;
+    run.error = status === "failed" || status === "interrupted" ? note : null;
     run.endedAt = run.endedAt ?? new Date().toISOString();
     try {
       run.changedFiles = countChanged(run.repoRoot, run.baseSha);
@@ -875,10 +878,14 @@ export class RunManager {
     }
   }
 
-  async shutdown(): Promise<void> {
+  /**
+   * 应用/runner 正常收尾：进行中的 run 落盘为 interrupted（不是 failed），
+   * 保留输出与事件现场，下次启动可恢复。仅进程内真实执行错误才 failed。
+   */
+  async shutdown(note = "应用退出（现场保留，可恢复会话）"): Promise<void> {
     for (const session of this.sessions.values()) {
       if (!session.finalized) {
-        this.finalize(session, "failed", "runner 退出");
+        this.finalize(session, "interrupted", note);
       }
       this.killProcess(session);
       this.disposeHeadless(session);

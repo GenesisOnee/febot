@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { RunnerInfo } from "@/lib/runner/protocol";
+import { DATA_DIR } from "@/lib/server/workspace";
 
 // Next 访问 runner 的唯一入口。Next 不 import 任何 PTY / node-pty 模块，
 // 只通过 127.0.0.1 上的 HTTP 通信，保证 Next 重启不影响会话。
 
-const INFO_FILE = path.join(process.cwd(), "data", "runner.json");
+const INFO_FILE = path.join(DATA_DIR, "runner.json");
 
 export function readRunnerInfo(): RunnerInfo | null {
   try {

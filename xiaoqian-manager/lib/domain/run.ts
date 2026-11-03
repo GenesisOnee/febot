@@ -2,6 +2,10 @@
 //
 // run 与 task 一一对应，id 直接复用 taskId；一个 run 代表一次 `/pipeline` 会话。
 // 状态机：starting → running ⇄ needs_input → (done | failed | cancelled)
+//
+// interrupted：应用/runner 非正常退出时落盘的状态。与 failed 的区别是**现场可恢复**：
+// 输出缓冲、事件与轨迹都保留，桌面端下次启动据此提供「恢复会话」；
+// failed 只表示真实执行错误。interrupted 不会再被 cleanupStale 二次改写。
 
 export const RUN_STATUSES = [
   "starting",
@@ -11,6 +15,7 @@ export const RUN_STATUSES = [
   "done",
   "failed",
   "cancelled",
+  "interrupted",
 ] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 

@@ -12,6 +12,7 @@ export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
   done: "已完成",
   failed: "失败",
   cancelled: "已终止",
+  interrupted: "已中断",
 };
 
 const CLASS: Record<RunStatus, string> = {
@@ -22,6 +23,7 @@ const CLASS: Record<RunStatus, string> = {
   done: "border-emerald-600/40 text-emerald-700 dark:text-emerald-400",
   failed: "border-destructive/40 text-destructive",
   cancelled: "border-border text-muted-foreground",
+  interrupted: "border-amber-600/40 bg-amber-500/5 text-amber-700 dark:text-amber-400",
 };
 
 export function RunStatusBadge({

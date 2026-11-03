@@ -18,7 +18,7 @@ import path from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
 import { RunManager, RepoBusyError, RunNotFoundError, ensureDataDirs } from "../lib/runner/pty";
 import { repoStatus } from "../lib/runner/repos";
-import { RUNNER_INFO_FILE } from "../lib/runner/paths";
+import { DATA_DIR, FEBOT_ROOT, RUNNER_INFO_FILE } from "../lib/runner/paths";
 import type { ClientMessage, RunnerInfo, ServerMessage } from "../lib/runner/protocol";
 
 const PORT = Number(process.env.XQ_RUNNER_PORT) || 3011;
@@ -101,6 +101,17 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
 
   if (url.pathname === "/healthz") {
     json(res, 200, { ok: true, pid: process.pid, startedAt: STARTED_AT, appUrl: APP_URL });
+    return;
+  }
+
+  // 桌面端退出时序使用：鉴权后交给 shutdown 收尾（进行中 run 落盘 interrupted）。
+  if (url.pathname === "/shutdown" && method === "POST") {
+    if (req.headers["x-internal-token"] !== TOKEN) {
+      json(res, 401, { error: "unauthorized" });
+      return;
+    }
+    json(res, 200, { ok: true });
+    setTimeout(() => void shutdown("POST /shutdown"), 50);
     return;
   }
 
@@ -344,6 +355,11 @@ function writeInfoFile(): void {
   fs.writeFileSync(RUNNER_INFO_FILE, JSON.stringify(info, null, 2), "utf8");
 }
 
+if (process.env.FEBOT_DESKTOP === "1" && !process.env.FEBOT_WORKSPACE?.trim()) {
+  console.error("[runner] 桌面端启动必须注入 FEBOT_WORKSPACE，已拒绝启动");
+  process.exit(1);
+}
+
 ensureDataDirs();
 const staleRuns = manager.cleanupStale();
 writeInfoFile();
@@ -351,7 +367,10 @@ writeInfoFile();
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`[runner] listening on http://127.0.0.1:${PORT}`);
   console.log(`[runner] ws: ws://127.0.0.1:${PORT}/ws?token=<runner.json>`);
-  console.log(`[runner] app: ${APP_URL} · stale runs failed: ${staleRuns}`);
+  console.log(`[runner] app: ${APP_URL} · node: ${process.version}`);
+  console.log(`[runner] workspace: ${FEBOT_ROOT}`);
+  console.log(`[runner] data: ${DATA_DIR}`);
+  console.log(`[runner] stale runs interrupted: ${staleRuns}`);
 });
 
 async function shutdown(signal: string): Promise<void> {

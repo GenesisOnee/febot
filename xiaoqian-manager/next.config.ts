@@ -29,6 +29,14 @@ function readNextDevOrigins(): string[] {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: readNextDevOrigins(),
+  // 桌面端（resources/next）以 standalone server 启动；dev 下该选项无副作用。
+  output: "standalone",
+  // 关键安全项：Next 的文件追踪会把构建机的 data/ 原样打进 standalone 产物，
+  // 其中含 tasks.json、runs/、runner.json（真实 token）与 .tw-cookie.json。
+  // 桌面端构建脚本还会二次断言，双保险。
+  outputFileTracingExcludes: {
+    "*": ["./data/**"],
+  },
 };
 
 export default nextConfig;

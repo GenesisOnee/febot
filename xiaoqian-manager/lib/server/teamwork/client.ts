@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readTeamworkConfig, type TeamworkConfig } from "@/lib/server/config/root";
+import { DATA_DIR } from "@/lib/server/workspace";
 import { readCredentials } from "./credentials";
 
 // 协作平台取数客户端（零依赖纯 fetch），保持原有接口行为与坑位注释，不要凭猜测改动。
@@ -27,7 +28,7 @@ const FIELD_KEYS = [
 const MAX_PAGES = 50;
 const COOKIE_TTL_MS = 30 * 60 * 1000;
 
-const COOKIE_FILE = path.join(process.cwd(), "data", ".tw-cookie.json");
+const COOKIE_FILE = path.join(DATA_DIR, ".tw-cookie.json");
 
 // 配置惰性解析：import 期不读盘，缺配置时只在真正发请求时报错。
 function cfg(): TeamworkConfig {

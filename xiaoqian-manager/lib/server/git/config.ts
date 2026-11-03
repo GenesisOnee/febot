@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { GitOptions, GitProjectEntry } from "@/lib/domain/git";
 import { readRootConfig, warnMissingConfig, type RootConfig } from "@/lib/server/config/root";
+import { DATA_DIR } from "@/lib/server/workspace";
 
 // 部署节点可选的仓库与目标分支，来自 febot.config.json（不入库，见 .gitignore）。
 // 形状：
@@ -182,7 +183,7 @@ function loadConfig(): GitConfig {
   }
 
   // 5. 旧路径：xiaoqian-manager/data/repos.json
-  const legacy = path.join(process.cwd(), "data", "repos.json");
+  const legacy = path.join(DATA_DIR, "repos.json");
   if (fs.existsSync(legacy)) {
     cached = fromLegacyFile(legacy);
     return cached;

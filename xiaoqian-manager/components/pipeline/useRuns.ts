@@ -9,6 +9,7 @@ import type { PipelineRun, RunStatus } from "@/lib/domain/run";
 export const ATTENTION_WEIGHT: Record<RunStatus, number> = {
   needs_input: 0,
   failed: 1,
+  interrupted: 1,
   running: 2,
   starting: 3,
   done: 4,

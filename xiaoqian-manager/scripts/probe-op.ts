@@ -6,12 +6,13 @@ import {
 } from "../lib/server/teamwork/client";
 import { hasCredentials } from "../lib/server/teamwork/credentials";
 import { readTeamworkConfig } from "../lib/server/config/root";
+import { DATA_DIR } from "../lib/server/workspace";
 import fs from "node:fs";
 import path from "node:path";
 
 // 临时：直接裸调 operation 接口，打印原始返回。mode 组合不同 header/body 变体。
 async function rawOperation(taskId: string, mode: string) {
-  const cookieFile = path.join(process.cwd(), "data", ".tw-cookie.json");
+  const cookieFile = path.join(DATA_DIR, ".tw-cookie.json");
   const cookie = JSON.parse(fs.readFileSync(cookieFile, "utf8")).cookie as string;
   if (!hasCredentials()) {
     throw new Error("请在 febot.config.json 的 teamwork.loginName / teamwork.password 填写");

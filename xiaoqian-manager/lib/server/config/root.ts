@@ -26,6 +26,9 @@ function candidatePaths(): string[] {
   const list: string[] = [];
   const fromEnv = process.env.FEBOT_CONFIG;
   if (fromEnv && fromEnv.trim()) list.push(path.resolve(fromEnv.trim()));
+  // 桌面端显式注入工作区：standalone 启动后 cwd 是安装目录，不能再靠 cwd 探测
+  const workspace = process.env.FEBOT_WORKSPACE?.trim();
+  if (workspace) list.push(path.join(path.resolve(workspace), "febot.config.json"));
   list.push(path.join(process.cwd(), "febot.config.json"));
   list.push(path.join(process.cwd(), "..", "febot.config.json"));
   return list;

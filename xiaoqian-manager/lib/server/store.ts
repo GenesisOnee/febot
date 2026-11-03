@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { STAGE_DEFS, TasksFile, type Task } from "@/lib/domain/schema";
+import { DATA_DIR } from "@/lib/server/workspace";
 
 // 仅服务端可用（node:fs）。浏览器端严禁 import 本文件。
 //
@@ -8,7 +9,6 @@ import { STAGE_DEFS, TasksFile, type Task } from "@/lib/domain/schema";
 // 临界区内完成。仅适配单进程（next dev 或 next start 二选一），同时
 // 跑两个实例会互相覆盖。
 
-const DATA_DIR = path.join(process.cwd(), "data");
 const TASKS_FILE = path.join(DATA_DIR, "tasks.json");
 
 let chain: Promise<unknown> = Promise.resolve();

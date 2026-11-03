@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { aliasOfTask } from "../domain/run";
 import { repoKeyOf } from "./repo-key";
+import { FEBOT_ROOT } from "./paths";
 
 export { repoKeyOf };
 
@@ -13,7 +14,6 @@ export { repoKeyOf };
 // 解析失败（projectMap 未命中 / 仓库目录不存在 / 配置缺失）在 app 层直接拒绝，
 // 不再白开一个注定死在 feed 门禁上的窗口。
 
-const FEBOT_ROOT = path.resolve(process.cwd(), "..");
 const RESOLVE_SCRIPT = path.join(FEBOT_ROOT, "scripts", "resolve-repo.mjs");
 
 export interface ResolvedRepo {

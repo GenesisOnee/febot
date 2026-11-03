@@ -9,6 +9,7 @@ import {
 } from "../lib/server/teamwork/client";
 import { hasCredentials } from "../lib/server/teamwork/credentials";
 import { rowToTask } from "../lib/server/teamwork/mapper";
+import { DATA_DIR } from "../lib/server/workspace";
 import type { TwRow } from "../lib/server/teamwork/client";
 
 const TASK_ID = process.argv[2] ?? "";
@@ -18,7 +19,7 @@ if (!TASK_ID) {
 }
 
 function findRow(taskId: string): { row: TwRow; demandId: string } {
-  const file = path.join(process.cwd(), "data", "tasks.json");
+  const file = path.join(DATA_DIR, "tasks.json");
   const json = JSON.parse(fs.readFileSync(file, "utf8")) as {
     tasks: Array<{ id: string; demandId: string }>;
   };

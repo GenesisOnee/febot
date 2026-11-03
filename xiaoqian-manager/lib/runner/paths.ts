@@ -6,10 +6,19 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 export const PROJECT_ROOT = path.resolve(HERE, "..", "..");
-/** 本应用的上级目录（feib bot 根），PTY 的固定工作目录 */
-export const FEBOT_ROOT = path.resolve(PROJECT_ROOT, "..");
+/**
+ * 工作区根（febot 根），PTY 的固定工作目录。
+ *
+ * 桌面端由 Electron 注入 FEBOT_WORKSPACE；本地开发回退到本应用的上级目录。
+ * 生产打包后 server.mjs 位于 resources/runner，import.meta.url 推导出的
+ * PROJECT_ROOT 不再是仓库结构，因此桌面端必须显式注入。
+ */
+export const FEBOT_ROOT = process.env.FEBOT_WORKSPACE?.trim()
+  ? path.resolve(process.env.FEBOT_WORKSPACE.trim())
+  : path.resolve(PROJECT_ROOT, "..");
 
-export const DATA_DIR = path.join(PROJECT_ROOT, "data");
+/** 数据目录：始终与工作区布局一致（<workspace>/xiaoqian-manager/data） */
+export const DATA_DIR = path.join(FEBOT_ROOT, "xiaoqian-manager", "data");
 export const RUNS_DIR = path.join(DATA_DIR, "runs");
 export const TEMP_DIR = path.join(DATA_DIR, "temp");
 export const REPOS_FILE = path.join(DATA_DIR, "repos.json");
