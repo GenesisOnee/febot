@@ -1,5 +1,3 @@
-![febot 工作台](../febot.png)
-
 # xiaoqian-manager
 
 febot 工作区里**研发流水线的宿主**：一个 Next.js 应用，承载「获取需求 → 规划 → AI 编码/审查/修复 → 提交合并 → 填写工时」这几步，并把 ②③ 步的 `/pipeline` 剧本拉起来。
