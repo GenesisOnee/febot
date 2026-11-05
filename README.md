@@ -1,4 +1,4 @@
-![febot 工作台](../febot.png)
+![febot 工作台](./febot.png)
 
 # febot / 前端研发自动化工作区
 
