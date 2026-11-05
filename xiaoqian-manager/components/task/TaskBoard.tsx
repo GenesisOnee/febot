@@ -25,11 +25,13 @@ import NewTaskDialog from "./NewTaskDialog";
 
 // 状态筛选按「当前所处节点」归类；deploy 的展示名改为「已完成」，key 不变。
 
+const COMPLETED_STAGE_KEY = "deploy";
+
 const STATUS_FILTERS = [
   { value: "not_started", label: "未开始" },
   { value: "planer", label: "计划" },
   { value: "coder", label: "写代码" },
-  { value: "deploy", label: "已完成" },
+  { value: COMPLETED_STAGE_KEY, label: "已完成" },
 ] as const;
 
 function currentStageKey(t: Task): string {
@@ -72,7 +74,11 @@ export default function TaskBoard({
     return tasks
       .filter((t) => {
         if (moduleFilter !== "all" && t.module !== moduleFilter) return false;
-        if (statusFilter !== "all" && currentStageKey(t) !== statusFilter) return false;
+        const stageKey = currentStageKey(t);
+        // 「全部状态」只查未完成的任务，已完成（deploy）需显式选择才展示
+        if (statusFilter === "all" ? stageKey === COMPLETED_STAGE_KEY : stageKey !== statusFilter) {
+          return false;
+        }
         if (q && !`${t.title} ${t.id} ${t.module}`.toLowerCase().includes(q)) return false;
         return true;
       })

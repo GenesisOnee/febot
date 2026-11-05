@@ -40,6 +40,9 @@
   "features": {
     "hindsight": false
   },
+  "locate": {
+    "grepExcludes": {}
+  },
   "codeNameMap": {},
   "jenkins": {
     "base": "",

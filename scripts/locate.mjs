@@ -239,7 +239,22 @@ function filterCandidates(bundle) {
 
 // ---------- 内容检索（L5） ----------
 
-function grepRepo(repoDir, patterns, alias) {
+/**
+ * 按仓配置的检索排除项（febot.config.json 的 locate.grepExcludes[<仓名>]）。
+ * 旧版 git 在超大生成文件上多 pattern 检索会退化到分钟级（实测 3.4MB json.ts：4 patterns 20s，
+ * 59 patterns 远超 60s 超时），这类生成数据文件本就不该参与候选打分，故在此排除。
+ */
+function grepExcludes(cfg, repo) {
+  const map = cfg?.raw?.locate?.grepExcludes;
+  if (!map || typeof map !== "object" || Array.isArray(map)) return [];
+  const list = map[repo];
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((p) => typeof p === "string" && p.trim())
+    .map((p) => `:(exclude)${p.trim()}`);
+}
+
+function grepRepo(repoDir, patterns, alias, excludes = []) {
   const dir = TMP_DIR;
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${alias}.patterns`);
@@ -263,6 +278,7 @@ function grepRepo(repoDir, patterns, alias) {
         "*.tsx",
         "*.js",
         "*.jsx",
+        ...excludes,
       ],
       { encoding: "utf8", timeout: 60000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] },
     );
@@ -451,7 +467,7 @@ function run(alias, flags) {
   const routeBundle = buildCandidates(map, anchors);
 
   // L5 内容检索：中文只进 patterns 文件，不进命令行
-  const rawGrep = grepRepo(repoDir, patterns, alias);
+  const rawGrep = grepRepo(repoDir, patterns, alias, grepExcludes(cfg, repo));
   const hits = parseGrep(rawGrep);
   const perFileSnippets = scoreContent(hits, contentAnchors, routeBundle);
 
