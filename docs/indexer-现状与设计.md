@@ -177,7 +177,7 @@ ProjectMap
 | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `definedInRepo: true`（权限判定在本仓）                        | 名字正则把 `queryPermissionsByShift`（**API 函数**）、`userSettingPermission`（**字段**）当成判定函数                 | 只认**真出现在权限检查点上的被调名**                             |
 | `getPermissionValue` 是本仓实现                                | 它调的 `hasPermission` 委托给宿主                                                                                     | 委托判定要**传递**                                               |
-| demo-product-a 判定在本仓                                           | 它走 **iframe 桥**（`getIframeStore()` + `getters["...hasPermission"]`），宿主通路不止 `parentVuex`                   | 补标记                                                           |
+| demo-product-a-ui 判定在本仓                                           | 它走 **iframe 桥**（`getIframeStore()` + `getters["...hasPermission"]`），宿主通路不止 `parentVuex`                   | 补标记                                                           |
 | `wrapper: src/view/borrow/BorrowApplication.vue`（这是封装层） | 判据「文件里有 export 且碰 storage」几乎命中每个 Vue 文件                                                             | 改为「存储调用落在**导出声明的函数体**内」，且**沿整条祖先链**找 |
 | `persist: {key: "demo/useNrStore"}`                            | 该 store 用的是 `pinia-plugin-persist`（`{strategies:[{key,storage}]}`），顶层没有 `key` —— 我拿 id 兜底了 = **编造** | 读不到就返回 `null`，**不拿 id 兜底**                            |
 
@@ -254,7 +254,7 @@ ProjectMap
 | **demo-product-i-mobile 路由为 0** | 低   | Taro 移动端，路由不在 `.ts/.js` 里（未找到 `createRouter`）                                                                            |
 | **消息 type 清单为空**          | 低   | 这些仓**不用 `msg.type === "x"` 标签**，按**字段存在性**分发（`if (msg.monitor) …`）→ 已用 `dispatchFields` 如实记录，空数组不是没抽到 |
 | **权限判定多不在本仓**          | 中   | 在 qiankun 宿主仓 → `definedInRepo: false` 就是答案本身（解释「为什么这里找不到权限实现」）                                            |
-| **部分路由无 meta 业务名**      | 低   | demo-product-k-ui / demo-product-f-ui / demo-product-a 部分路由确实没写 —— 数据不存在，非缺陷                                                             |
+| **部分路由无 meta 业务名**      | 低   | demo-product-k-ui / demo-product-f-ui / demo-product-a-ui 部分路由确实没写 —— 数据不存在，非缺陷                                                             |
 | **Vue2 仓不覆盖**               | —    | `demo-product-g-web` 是 Vue2，索引器只支持 Vue3                                                                                   |
 | **不做完整 WS 抽取器**          | —    | 实测仅 5 处，只做定位 + 消息分发字段                                                                                                   |
 | **不做生命周期/重连抽取**       | —    | WS 的 `close()` / 心跳 / 重连逻辑未抽                                                                                                  |

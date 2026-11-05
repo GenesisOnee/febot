@@ -1,6 +1,6 @@
-![febot 工作台](./febot.png)
-
 # febot / 前端研发自动化工作区
+
+> 截图待补：发布前请用 `febot.config.json` 的示例数据重新截一张不含内部信息的图。
 
 `febot`（**fe** 前端 + **bot** 自动化代理）是一个**前端研发工作区**，里面有两条**互相独立**的主线，共用一个「看代码 + 记知识」的底座：
 
@@ -26,7 +26,7 @@
 - **事实层**：`code-indexer` 静态索引器 —— 路由 / 组件树 / API 域 / store / 事件 / 权限 / 存储。
 - **记忆层**：本机 Docker 里的 Hindsight（见第四部分 §12–§15）—— 流水线存「研发流程经验」，助手存「业务知识」，**两套 bank 分开**。
 
-其余：`swagger-mcp-server`（实时 API 文档）供流水线用；[desktop/](desktop/) 是可选的 Windows 桌面壳，把宿主和 runner 装成双击即用的应用（见 §16）；[om/](om/) 是**独立**的发版看板，不参与任何主线。
+其余：`swagger-mcp-server`（实时 API 文档）供流水线用；[desktop/](desktop/) 是可选的 Windows 桌面壳，把宿主和 runner 装成双击即用的应用（见 §16）。
 
 ---
 
@@ -62,7 +62,6 @@ yarn setup
    | `hindsight.env`          | `scripts/hindsight.env`            | Hindsight 的 LLM / embedding key                 |
    | `tasks.md`               | `tasks.md`                         | 需求元信息表（流水线会往里追加行）               |
    | `file-lock.md`           | `file-lock.md`                     | 并行冲突仲裁表                                   |
-   | `om-data.json`           | `om/data.json`                     | 发版看板数据                                     |
    | `claude-settings.json`   | `.claude/settings.json`            | Claude Code 权限规则（含 `archive/` 禁区 deny）  |
    | `swagger-services.conf`  | `swagger-mcp-server/services.conf` | swagger-multi 服务清单                           |
 
@@ -104,7 +103,7 @@ yarn setup
     "tableId": "",
     "autograph": "",
     "cookie": "",                            // 可选：粘 cookie 可跳过登录
-    "users": ["负责人甲", "负责人乙"]          // om 看板的负责人列表
+    "users": ["负责人甲", "负责人乙"]          // 团队负责人列表
   },
   "nextDevOrigins": ["192.168.1.100"]         // 局域网用手机访问 dev server 时填
 }
@@ -132,15 +131,14 @@ cd example-repo && git checkout dev
 ## 0.5 跑起来
 
 ```bash
-yarn dev          # om 看板 :3000 + xiaoqian-manager :3010（并行）
-yarn om           # 只起发版看板 :3000
+yarn dev          # 起 xiaoqian-manager :3010
 yarn xiaoqian     # 只起 xiaoqian-manager :3010
 yarn desktop:dev  # 桌面端窗口（Electron 内拉起 Next + runner，见 §16）
 yarn recon <别名>  # 生成某需求的事实底稿 docs/requirements/<别名>/recon.md
 yarn feed --plan <计划文件> [--alias R-xxxxxx] [--json] [--dry-run]  # 接入需求（解析/定仓/门禁/脚手架）
 ```
 
-浏览器打开 `http://localhost:3010`，右上角「同步」拉需求；`http://localhost:3000` 是发版看板。
+浏览器打开 `http://localhost:3010`，右上角「同步」拉需求。
 
 > 桌面端与 `yarn dev` 不能同时运行：Next 16 会检测同目录的已有 dev server。要同时验证，用 `FEBOT_DESKTOP_USE_RESOURCES=1 yarn desktop:dev` 走 `resources/` 生产布局。
 
@@ -170,7 +168,7 @@ python scripts/ensure-banks.py
 | `recon` 报「repo dir not found」 | `repoRoot/<仓库目录名>` 不存在。先 clone，且目录名要和 `tasks.md` 第 5 列一致 |
 | 同步报「未配置协作平台账号」 | `teamwork` 段的 `loginName` / `password` / `cookie` 都没填。到设置→任务来源或 `febot.config.json` 补上；用自定义来源时改传该来源 |
 | 上传自定义来源报 `febot.source.json 缺少合法 entry` | manifest 缺 `entry`、入口文件不在文件夹里，或路径越界（绝对路径 / `..`） |
-| om 点「一键更新」报 502 | 没配 `teamwork.cookie`，也没填 `teamwork.loginName` / `teamwork.password`。在 `febot.config.json` 的 `teamwork` 段补上账号密码即可自动登录 |
+| 「一键更新」报 502 | 没配 `teamwork.cookie`，也没填 `teamwork.loginName` / `teamwork.password`。在 `febot.config.json` 的 `teamwork` 段补上账号密码即可自动登录 |
 | Git Bash 下 `/xxx` 参数被转成 Windows 路径 | 加 `MSYS_NO_PATHCONV=1` 前缀 |
 
 ---
@@ -492,7 +490,7 @@ febot.config.json         主配置(本地生成，不入库)
   skills/assistant/                     助手入口 skill + references/{service-protocol,what-to-store}.md
 tasks.md                  需求元信息表(含 tier、**仓库**列——recon 靠它定位仓)
 file-lock.md              并行冲突仲裁表
-package.json              工作区脚本(`yarn om` / `assistant:*` 等)
+package.json              工作区脚本(`yarn dev` / `assistant:*` 等)
 docs/requirements/
   _template/              10+ 个空白模板,喂食从这里复制
   <R-xxxxx>/              context.md questions.md answers.md plan.md
@@ -516,7 +514,6 @@ xiaoqian-manager/        小千管理(Next.js) —— 全部流程的宿主(①�
 desktop/                 桌面端 Electron 壳(把宿主+runner 装成 Windows 应用,见 §16)
 code-indexer/            Vue3 仓库静态索引器(CLI + MCP),两条线共用
 swagger-mcp-server/      swagger-multi MCP 补丁版服务器,②③步用
-om/                      发版看板(独立,见 §16)
 ```
 
 **产品仓工作区（`<repoRoot>/<仓>`，AgentTeam 动代码的唯一地方）**
@@ -703,9 +700,7 @@ yarn desktop:dist      # 生成 desktop/dist/febot-Setup-<version>.exe
 
 ### 独立项目（不参与总流程）
 
-| 项目       | 是什么                                                                                            | 状态                          |
-| ---------- | ------------------------------------------------------------------------------------------------- | ----------------------------- |
-| [om/](om/) | 发版看板：按后端人员分组跟踪各前端项目发版（打包状态/版本号/进度），纯本地，数据在 `om/data.json` | 独立部署（`yarn om` → :3000） |
+发版看板 `om` 已拆分为独立项目，不再随本仓库分发。
 
 ## 17. 定制
 
@@ -738,3 +733,11 @@ yarn desktop:dist      # 生成 desktop/dist/febot-Setup-<version>.exe
 > AgentTeam 喂食时据 PM 卡的「产品/模块 + 标题关键词」按下述规则确定性求值，决定改动落在哪个仓：
 > ① 项目名精确匹配；② 标题含某条 `keywords` 任一关键词 → 用该条所属仓库（多条命中按数组顺序取第一条）；③ 无关键词命中 → 用该项目下唯一一条无 `keywords` 的兜底条目；④ 兜底不唯一 / 无命中 → 问负责人，确认后回填，不许猜。
 > **由负责人维护确认。** 每个 `name` 必须是 `repoRoot` 下的仓库目录名。
+
+---
+
+## 18. 许可证
+
+本项目采用 [MIT License](LICENSE)。Copyright (c) 2026 Zombiesix。
+
+安全问题请按 [SECURITY.md](SECURITY.md) 私下报告，不要开公开 Issue。

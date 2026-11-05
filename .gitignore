@@ -17,13 +17,11 @@ docs/assistant/
 /febot.config.json
 /tasks.md
 /file-lock.md
-/om/data.json
 /.claude/settings.json
 /swagger-mcp-server/services.conf
 scripts/hindsight.env
 
 # 本地数据 / 目标仓克隆 / 缓存
-om/docs/
 __pycache__/
 .claude/settings.local.json
 

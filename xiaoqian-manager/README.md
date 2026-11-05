@@ -6,7 +6,7 @@ febot 工作区里**研发流水线的宿主**：一个 Next.js 应用，承载�
 
 ## 跑起来
 
-从**仓库根**跑（推荐，会同时起 om 看板）：
+从**仓库根**跑（推荐）：
 
 ```bash
 yarn dev
@@ -18,7 +18,7 @@ yarn dev
 yarn xiaoqian          # 等价于 yarn --cwd xiaoqian-manager dev
 ```
 
-端口 **3010**（om 看板占 3000，两者可同时跑）。打开 http://localhost:3010。
+端口 **3010**。打开 http://localhost:3010。
 
 ### 流水线 runner（独立进程）
 
@@ -61,6 +61,8 @@ runner 启动时在 `xiaoqian-manager/data/runner.json` 写入 `{pid,port,httpUr
 | ③ 编码+审查+修复 | 「写代码」节点 ▶ → 在 runner 的 PTY 里跑 `claude /pipeline`，右侧常驻会话面板 | 前端 `components/pipeline/`；runner `scripts/runner.ts` + `lib/runner/`；剧本 `.claude/commands/pipeline.md` |
 | ④ 提交合并     | 独立审阅页「代码提交」              | `app/api/runs/[id]/submit-code` → `lib/server/git/deploy.ts`（pull → commit → push → cherry-pick） |
 | ⑤ 填写工时     | 右上角「今日工时」                  | `components/timesheet/TimesheetEntry.tsx`（新标签页跳转协作平台工时页面） |
+
+> 「今日工时」的跳转地址通过环境变量 `NEXT_PUBLIC_TIMESHEET_URL` 配置；未配置时入口自动隐藏。
 
 > 流程图只有三个节点：计划 → 写代码 → 标记完成（对应总流程 ②③④）。「标记完成」只同步远程状态，代码提交在审阅页单独进行。
 

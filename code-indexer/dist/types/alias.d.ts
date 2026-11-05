@@ -2,7 +2,7 @@
  * 路径别名表。
  *
  * 过去 `resolveSpecifier` 硬编码「`@/` → srcDir」，结果 repo-d 的
- * `@service`（→ src/service/api）、repo-e 的 `@care` / `@care`
+ * `@service`（→ src/service/api）、示例仓的 `@care` / `@care`
  * 全部解析不出来，被静默丢弃 —— 那些仓的 import 关系有系统性缺口。
  *
  * 这里真读配置：tsconfig 的 `compilerOptions.paths`（全仓都有）+ vite 的

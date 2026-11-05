@@ -670,7 +670,7 @@ B 的 `check-files.mjs` 与 `advance check` 完全重叠。`advance check` 已�
 | feed 回归 | `node scripts/feed.mjs --plan d:/tmp/feed-fixture.md --dry-run`，对比改动前后 stdout/退出码 | `alias/repo/branch/gate/actions/files` 一致；3/5/6 分支不变；`checkedAt`/`updatedAt` 归一化后比较 |
 | advance fixture | `FEBOT_ROOT=d:/tmp/febot-merged-fixture`；空仓 + 模板 + tasks + file-lock；本机 git 2.20 不支持 `git init -b`，用 `git init` 后 `git checkout -b dev` | `status` 脏工作区不失败；`gate --init` 脏/分支错 exit 3；`set-phase` 转移/幂等/iteration；`set-tier` full/express；`check` 白名单/越界/staged/HEAD/exempt；`review-input` 新文件/二进制/超大/空格路径；`approve-files` conditional；`done` 预检失败零写入、重复 `already:true`、marker 归属冲突 |
 | full E2E | 选一个 ≤3 文件的历史 full 需求 | init → planning → plan_confirm → coding → code_review → fixing/verify → done；`plan.files.json` 生效；reviewer 只读 `review-input.txt`；marker 最后出现 |
-| express E2E | `R-000001`（feed 为 `R-533231`） | 定位到 `demo-product-e-ui`；`/demo-record` 命中；候选前 3 含 `demo-record-sheet.vue` 与 `demo-patient-chart.vue`；确认后 5 阶段完成；≤25min（不含 coder 编辑） |
+| express E2E | `R-000001`（feed 为 `R-533231`） | 定位到 `demo-product-e-ui`；`/demo-record` 命中；候选前 3 含 `demo-record-sheet.vue` 与 `demo-chart.vue`；确认后 5 阶段完成；≤25min（不含 coder 编辑） |
 | locate 历史召回 | R-161135 / R-873656 / R-135539 / R-114776 / R-oral-10161029 | 实际改动文件进入 top 8 候选 ≥4/5；只有 ≤5 文件的需求推荐 express |
 | locate 缓存 | 同一 HEAD 连跑两次 | 首次约 10s；第二次 <1s |
 | 无副作用 | locate/recon 前后 `git -C gitlab/<仓> status --porcelain` | 完全一致；只新增 `docs/requirements/<别名>/` 与 `.febot/` |

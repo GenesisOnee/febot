@@ -3,7 +3,7 @@ import type { StoreInfo, StoreStateIndex } from "./channel-types";
  * Pinia store 抽取。
  *
  * 实测三种形态，缺一不可：
- * - **对象式** `defineStore({ id, state, getters, actions })` —— example-sys / repo-e / repo-f / repo-a
+ * - **对象式** `defineStore({ id, state, getters, actions })` —— example-sys / 示例仓 / repo-f / repo-a
  * - **setup 式** `defineStore("id", () => { const a = ref(); return { a } })` —— repo-d
  * - **模块级 reactive 单例** `export const x = reactive({ ... })` —— example-sys `store/qiankun.ts`
  *   （既不是 pinia 也不是 props 的隐藏全局状态）

@@ -5,7 +5,7 @@
   "description": "febot 桌面端应用：Electron 壳 + Next standalone + runner 本地服务守护",
   "main": "out/main/index.js",
   "author": "febot",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

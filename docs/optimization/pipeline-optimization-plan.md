@@ -13,7 +13,7 @@
 - 具体行为：「后一天按钮置灰」「时间选择框置灰」
 - 新参数 code `DEMO.PARAM.001`
 
-只读验证结果：`/demo-record` 精确命中 `src/page/demo-record/index.vue`；「后一天」逻辑精确落在 `demo-record-sheet.vue:263` 与 `demo-patient-chart.vue:133`。这个需求根本不需要 planner 全量探索。
+只读验证结果：`/demo-record` 精确命中 `src/page/demo-record/index.vue`；「后一天」逻辑精确落在 `demo-record-sheet.vue:263` 与 `demo-chart.vue:133`。这个需求根本不需要 planner 全量探索。
 
 **目标**：增加一个确定性的 `locate` 阶段，自动定位「仓库 → 模块 → 组件/文件」，产出带证据的候选改动清单；负责人确认后，简单需求直接进入一次 coder + verify（快轨），复杂需求仍走 full。同时修掉现有流水线中已确认的空转点。
 
@@ -146,7 +146,7 @@ locating  ← 新增，确定性脚本，两条轨道都跑
 
 1. **样例任务**：用 `R-000001` 走一遍 `locate`（先由 feed 接入为 `R-533231`）。
    - 必须定位到 `demo-product-e-ui`，`/demo-record` 命中。
-   - 候选前 3 必须包含 `src/page/demo-record/demo-record-sheet.vue` 与 `src/page/demo-record/component/demo-patient-chart.vue`。
+   - 候选前 3 必须包含 `src/page/demo-record/demo-record-sheet.vue` 与 `src/page/demo-record/component/demo-chart.vue`。
    - `DEMO.PARAM.001` 标为未命中，并能通过前缀匹配给出 `src/store/common.ts` 这类同类参数写法。
 2. **历史回归**：对 R-161135、R-873656、R-135539、R-114776、R-oral-10161029 跑 `locate`，与各自实际改动文件（state.json / progress.md / test-report.md）比对。
    - 召回：实际改动文件出现在 top 8 候选中的需求 ≥ 4/5。

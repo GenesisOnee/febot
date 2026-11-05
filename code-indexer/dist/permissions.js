@@ -22,7 +22,7 @@ const DIRECTIVE_NAME_RE = /permission|auth|perm/i;
  * 实现落在宿主的标记 —— 命中说明判定不归本仓管。
  * 覆盖实测到的三条通路：
  * - qiankun vuex：`$inm_parentVuex` / `$icss_parentVuex` / `window.parent`
- * - iframe 桥：`getIframeStore()`（demo-product-a 的写法）
+ * - iframe 桥：`getIframeStore()`（demo-product-a-ui 的写法）
  * - 直接读宿主 getter：`getters["user/hasPermission"]`
  */
 const HOST_MARKERS = /parentVuex|\$inm_parent|window\.parent|__POWERED_BY_QIANKUN__|iframeStore|getters\s*\[\s*["'`][^"'`]*hasPermission/i;
@@ -136,7 +136,7 @@ export function buildPermissions(repoRoot, filesAbs, routes) {
         raw.push(...directiveRefs(repoRoot, absFile, registered));
     }
     const usedNames = new Set(raw.filter(r => r.kind === "inline").map(r => r.via));
-    // 同名声明可能有多个（repo-e 里 `hasPermission` 既有收 item 的、也有收权限码的），
+    // 同名声明可能有多个（示例仓 里 `hasPermission` 既有收 item 的、也有收权限码的），
     // 取第一个是武断的 —— 全部收集、如实列出，让消费方自己判断
     const decls = [];
     for (const absFile of filesAbs) {

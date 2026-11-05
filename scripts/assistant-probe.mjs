@@ -28,8 +28,8 @@ const API = '/v1/default/banks';
 const STAMP = Date.now().toString(36);
 const TAG_A = `probe-a-${STAMP}`;
 const TAG_B = `probe-b-${STAMP}`;
-const PATCHED_TEXT = `示例模块模块的支付流程改由 demo-pay-v2 组件负责（探针修订 ${STAMP}）`;
-const QUERY = '示例模块模块的支付流程';
+const PATCHED_TEXT = `示例模块的支付流程改由 demo-pay-v2 组件负责（探针修订 ${STAMP}）`;
+const QUERY = '示例模块的支付流程';
 
 class Bail extends Error {}
 function bail(msg) { throw new Bail(msg); }
@@ -95,7 +95,7 @@ async function main() {
   const retain = await req('POST', `${API}/${q(BANK)}/memories`, {
     items: [
       {
-        content: `示例模块模块的支付流程由 demo-pay 组件负责（探针样本 A ${STAMP}）`,
+        content: `示例模块的支付流程由 demo-pay 组件负责（探针样本 A ${STAMP}）`,
         metadata: { repo: 'probe', module: 'pay', evidence: 'src/pay/index.ts:42', source: 'probe', date: '2026-10-10' },
         tags: [TAG_A],
       },

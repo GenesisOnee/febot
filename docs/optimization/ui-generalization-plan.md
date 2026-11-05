@@ -501,8 +501,8 @@ interface SmsProvider {
 | 仓库 | 开发分支 | 合并分支 | Jenkins Job | 项目 |
 |---|---|---|---|---|
 | demo-product-a-ui | `dev-feature`（预填当前分支） | `dev` | `demo_web` | `示例产品 A` |
-| demo-product-b-ui | `dev-feature` | `dev` | `/demo-product-b-web` | `示例产品 B`、`示例产品 C`、`示例产品 D` |
-| demo-product-f-ui | `dev`（覆盖默认） | `dev` | `/demo-medical` | `示例产品 F` |
+| demo-product-b-ui | `dev-feature` | `dev` | `/demo-product-b-job` | `示例产品 B`、`示例产品 C`、`示例产品 D` |
+| demo-product-f-ui | `dev`（覆盖默认） | `dev` | `/demo-product-f-job` | `示例产品 F` |
 
 - 仓库名只读，来自扫描结果。
 - 开发/合并分支：默认取顶部全局默认值，可逐仓覆盖。
@@ -535,12 +535,12 @@ interface SmsProvider {
     {
       "name": "demo-product-f-ui",
       "devBranch": "dev",
-      "jenkinsJob": "/demo-medical",
+      "jenkinsJob": "/demo-product-f-job",
       "projects": [{ "name": "示例产品 F" }]
     },
     {
       "name": "demo-product-b-ui",
-      "jenkinsJob": "/demo-product-b-web",
+      "jenkinsJob": "/demo-product-b-job",
       "projects": [
         { "name": "示例产品 B" },
         { "name": "示例产品 C" },

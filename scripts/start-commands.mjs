@@ -111,7 +111,7 @@ function extractFromReadme(text) {
       if (parsed) found.push({ ...parsed, source });
     }
 
-    // 列表项里的裸命令：- 示例产品 J启动 yarn dev:module-a
+    // 列表项里的裸命令：- 示例产品 J 启动 yarn dev:module-a
     if (/^\s*[-*+]\s+/.test(raw)) {
       for (const m of raw.matchAll(PM_CMD_RE)) {
         const parsed = parseStartCommand(m[1]);

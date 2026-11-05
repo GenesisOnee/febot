@@ -8,7 +8,7 @@ import { createLiteralResolver } from "./literals";
  * 存储通道：localStorage / sessionStorage / cookie。
  *
  * 实测这类 key 的业务信息量意外地大 —— repo-g 的
- * `demo/medical/dateType`、`demo/copy/dateType`、`demo/putawayManage/dateType`
+ * `demo/module/dateType`、`demo/copy/dateType`、`demo/putawayManage/dateType`
  * 全是「记住这个页面上次选的日期口径」，是真实的业务行为，之前完全不可见。
  *
  * 关键点：**key 必须走常量解析**。这些仓普遍写成 `setItem(TOKEN_KEY, v)`，

@@ -250,7 +250,7 @@ export function buildComponentEmits(repoRoot, filesAbs) {
 /**
  * handler 里调了什么（api / store action / router 都在这）。
  *
- * 必须**全树查找**声明：repo-e 的 `executCompletedSave` 声明在嵌套作用域里
+ * 必须**全树查找**声明：示例仓的 `executCompletedSave` 声明在嵌套作用域里
  * （`const executCompletedSave = async () => {...}`，后面还被塞进某个 `return {}`），
  * 只扫顶层语句会漏。
  */

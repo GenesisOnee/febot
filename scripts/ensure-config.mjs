@@ -22,12 +22,7 @@ const TEMPLATES = [
     dst: 'file-lock.md',
     hint: '并行冲突仲裁表，初始为空表',
   },
-  {
-    src: 'example/om-data.json',
-    dst: 'om/data.json',
-    hint: '发版看板数据，可先留空',
-  },
-  {
+    {
     src: 'example/claude-settings.json',
     dst: '.claude/settings.json',
     hint: '含 archive 禁区 deny 规则；如需免确认自行加 permissions.defaultMode',

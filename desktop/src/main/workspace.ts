@@ -38,7 +38,6 @@ export const USER_FILE_TEMPLATES: ReadonlyArray<{ src: string; dst: string }> = 
   { src: "example/febot.config.json", dst: "febot.config.json" },
   { src: "example/tasks.md", dst: "tasks.md" },
   { src: "example/file-lock.md", dst: "file-lock.md" },
-  { src: "example/om-data.json", dst: "om/data.json" },
   { src: "example/claude-settings.json", dst: ".claude/settings.json" },
   { src: "example/swagger-services.conf", dst: "swagger-mcp-server/services.conf" },
   { src: "example/hindsight.env", dst: "scripts/hindsight.env" },

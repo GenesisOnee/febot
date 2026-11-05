@@ -26,7 +26,7 @@ const DIRECTIVE_NAME_RE = /permission|auth|perm/i;
  * 实现落在宿主的标记 —— 命中说明判定不归本仓管。
  * 覆盖实测到的三条通路：
  * - qiankun vuex：`$inm_parentVuex` / `$icss_parentVuex` / `window.parent`
- * - iframe 桥：`getIframeStore()`（demo-product-a 的写法）
+ * - iframe 桥：`getIframeStore()`（demo-product-a-ui 的写法）
  * - 直接读宿主 getter：`getters["user/hasPermission"]`
  */
 const HOST_MARKERS =
@@ -181,7 +181,7 @@ export function buildPermissions(
     text: string;
     calls: string[];
   }
-  // 同名声明可能有多个（repo-e 里 `hasPermission` 既有收 item 的、也有收权限码的），
+  // 同名声明可能有多个（示例仓 里 `hasPermission` 既有收 item 的、也有收权限码的），
   // 取第一个是武断的 —— 全部收集、如实列出，让消费方自己判断
   const decls: Decl[] = [];
 

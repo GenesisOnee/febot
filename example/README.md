@@ -9,7 +9,6 @@
 | `febot.config.json`     | `febot.config.json`                 |
 | `tasks.md`              | `tasks.md`                          |
 | `file-lock.md`          | `file-lock.md`                      |
-| `om-data.json`          | `om/data.json`                      |
 | `claude-settings.json`  | `.claude/settings.json`             |
 | `swagger-services.conf` | `swagger-mcp-server/services.conf`  |
 | `hindsight.env`         | `scripts/hindsight.env`             |

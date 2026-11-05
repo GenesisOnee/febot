@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "description": "febot：前端研发自动化工作区",
+  "license": "MIT",
   "scripts": {
     "setup": "node scripts/ensure-config.mjs && yarn --cwd code-indexer && yarn --cwd xiaoqian-manager && yarn --cwd swagger-mcp-server && yarn --cwd desktop",
     "dev": "node scripts/dev.mjs",
-    "om": "node om/server.js",
     "xiaoqian": "yarn --cwd xiaoqian-manager dev",
     "runner": "yarn --cwd xiaoqian-manager runner",
     "desktop:install": "yarn --cwd desktop",

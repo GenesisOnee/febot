@@ -1,11 +1,9 @@
 import { spawn } from 'node:child_process';
 
 const children = [
-  ['om 发版看板', 'node', ['om/server.js']],
   ['xiaoqian-manager 小千管理', 'yarn', ['--cwd', 'xiaoqian-manager', 'dev']],
 ];
 
-console.log('om 发版看板:        http://localhost:3000');
 console.log('xiaoqian-manager:   http://localhost:3010');
 console.log('');
 
