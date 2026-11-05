@@ -166,7 +166,8 @@ python scripts/ensure-banks.py
 | 仓库 / 分支下拉是空的 | `febot.config.json` 没填或 `repoRoot` 指向的目录不存在。控制台会打一行 `[config] 未找到 febot.config.json...` |
 | `yarn recon` 报「tasks.md 不存在」 | 没跑 `yarn setup`，或手工删掉了。从 `example/tasks.md` 复制一份即可 |
 | `recon` 报「repo dir not found」 | `repoRoot/<仓库目录名>` 不存在。先 clone，且目录名要和 `tasks.md` 第 5 列一致 |
-| 点「同步」报 400 | 没配 `teamwork.username`，且请求里也没带用户 |
+| 同步报「未配置协作平台账号」 | `teamwork` 段的 `loginName` / `password` / `cookie` 都没填。到设置→任务来源或 `febot.config.json` 补上；用自定义来源时改传该来源 |
+| 上传自定义来源报 `febot.source.json 缺少合法 entry` | manifest 缺 `entry`、入口文件不在文件夹里，或路径越界（绝对路径 / `..`） |
 | om 点「一键更新」报 502 | 没配 `teamwork.cookie`，也没填 `teamwork.loginName` / `teamwork.password`。在 `febot.config.json` 的 `teamwork` 段补上账号密码即可自动登录 |
 | Git Bash 下 `/xxx` 参数被转成 Windows 路径 | 加 `MSYS_NO_PATHCONV=1` 前缀 |
 
@@ -191,7 +192,7 @@ python scripts/ensure-banks.py
 
 | 步骤                                      | 做什么                                                       | 在哪执行                      | 由谁操作          | 说明                                                       |
 | ----------------------------------------- | ------------------------------------------------------------ | ----------------------------- | ----------------- | ---------------------------------------------------------- |
-| **① 获取需求**                            | 从协作平台(teamwork)拉取需求列表/详情入库                    | xiaoqian-manager              | 小前端 点击同步   | 过滤条件 `user=小前端`，落盘 `tasks.json`                  |
+| **① 获取需求**                            | 从任务来源（内置协作平台 / 自定义脚本）拉取需求列表/详情入库 | xiaoqian-manager              | 小前端 点击同步   | 按来源参数过滤，落盘 `tasks.json`；只增改、不删本地任务    |
 | **② 规划**                                | 小前端整理/修改需求描述 → AI 出实现计划 → 人工拍板           | xiaoqian-manager + `/pipeline` | 小前端 + AI       | `plannedDescription` **必填**；为空时「写代码」▶ 禁用，接口返回 422 |
 | **③ 编码+审查+修复**                      | AI 写代码 → 审查 → 修复 blocker                              | febot 家 `/pipeline` 剧本     | AI 全自动         | **只用 code-indexer、swagger-mcp-server 洞察代码**；入口是「写代码」节点的 ▶ |
 | **④ 提交合并**                            | 确认 diff 后手工把代码提交、合并到远程                       | xiaoqian-manager 审阅页       | 小前端 点「代码提交」 | 目标仓库/分支由 `repositories[]` 派生；pull → commit → push → cherry-pick → push |
@@ -419,7 +420,7 @@ yarn assistant:map <repoRoot>/<仓>
 
 ### 9.1 可视化设置
 
-首次启动若 `febot.config.json` 未初始化，工作台会自动弹出设置；之后点右上角齿轮随时打开。三个 Tab：
+首次启动若配置未初始化（缺 `repoRoot`、仓库、项目名，或开发/合并分支都没填），工作台会自动弹出设置；之后点右上角齿轮随时打开。三个 Tab：
 
 | Tab        | 内容                                                                                                             |
 | ---------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -643,7 +644,7 @@ om/                      发版看板(独立,见 §16)
 - **pipeline.md**：init recall / decisions retain / done reflect 人工门禁 / fixing retain / reviewer 画像
 - **planner.md**：记忆冲突 → 升级为 M1/M2 编号问题
 - **reviewer.md**：口味符合度 + 重复问题标记
-- **xiaoqian-manager 侧目前只有开关**：`lib/server/hindsight/client.ts` 提供了 recall / retain / reflect 封装，设置页可写 `features.hindsight`，但 ④ 步（代码提交 / 标记完成）**尚未调用** Hindsight。旧的「deploy 成功 → retain 已部署」已随阶段改造移除，接线时在 `lib/server/stages/transition.ts` 或 `submit-code/route.ts` 的 `afterComplete` 里补。
+- **xiaoqian-manager 侧目前只有开关**：`lib/server/hindsight/client.ts` 提供了 recall / retain / reflect 封装，设置页可写 `features.hindsight`，但 ④ 步（代码提交 / 标记完成）**尚未调用** Hindsight。旧的「deploy 成功 → retain 已部署」已随阶段改造移除；要接线就放在阶段处理器的 `afterComplete`（`lib/server/stages/registry.ts`）或 `submit-code/route.ts` 的成功分支里。
 - 全程**软降级**：Hindsight 没起 → 返回空/跳过，绝不拦流水线
 
 **助手侧**
