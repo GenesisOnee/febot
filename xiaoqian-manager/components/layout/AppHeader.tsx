@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Workflow } from "lucide-react";
 import { fmtDateTime } from "@/lib/ui/format";
-import { cn } from "@/lib/utils";
 import SyncButton from "@/components/sync/SyncButton";
 import TimesheetEntry from "@/components/timesheet/TimesheetEntry";
 import { ThemeToggle } from "./ThemeToggle";
@@ -16,8 +14,7 @@ export default function AppHeader({
   updatedAt: string;
   defaultUser?: string;
 }) {
-  const pathname = usePathname();
-  const onReview = pathname?.startsWith("/review");
+  // 待审页专用顶栏：工作台本身已有左栏导航，这里只保留返回入口。
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4">
@@ -30,23 +27,15 @@ export default function AppHeader({
         <nav className="ml-2 hidden items-center gap-1 sm:flex">
           <Link
             href="/"
-            className={cn(
-              "rounded-md px-2 py-1 text-sm hover:bg-muted",
-              !onReview && "text-foreground",
-              onReview && "text-muted-foreground"
-            )}
+            className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            任务
+            返回工作台
           </Link>
           <Link
             href="/review"
-            className={cn(
-              "rounded-md px-2 py-1 text-sm hover:bg-muted",
-              onReview && "text-foreground",
-              !onReview && "text-muted-foreground"
-            )}
+            className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            待审
+            待审队列
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">

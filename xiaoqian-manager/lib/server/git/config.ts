@@ -1,20 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { GitOptions, GitProjectEntry } from "@/lib/domain/git";
-import { readRootConfig, warnMissingConfig, type RootConfig } from "@/lib/server/config/root";
-import { DATA_DIR } from "@/lib/server/workspace";
+import type { GitOptions } from "@/lib/domain/git";
+import { deriveGitOptions } from "@/lib/domain/settings";
+import {
+  parseAppSettings,
+  readConfig,
+  readGitOptions as readDerivedGitOptions,
+  repoRootPath,
+  warnMissingConfig,
+  type RootConfig,
+} from "@/lib/server/config/store";
 
-// 部署节点可选的仓库与目标分支，来自 febot.config.json（不入库，见 .gitignore）。
-// 形状：
-//   {
-//     "repoRoot": "./gitlab",
-//     "repos": ["<仓名>", ...],
-//     "branches": { "candidates": ["dev"], "default": "dev" },
-//     "jenkins": { "base": "https://jenkins.example.com/jenkins/job", "jobs": { "<仓名>": "<job>" } }
-//   }
-// 同时兼容旧形状（xiaoqian-manager/data/repos.json）：
-//   { "root": "...", "repos": [...], "branches": ["dev"], "jenkins": { "<仓名>": "<完整URL>" } }
-// 读不到配置时退回**空**列表（不再内置任何仓库名），并打一次告警。
+// 仓库/分支/Jenkins 视图全部从 febot.config.json 的 repositories[] 派生。
+// 不保留旧的多表配置，也不回退 data/repos.json。
+//
+// 仅保留 GIT_REPOS_FILE 测试夹具：内容必须使用新 schema
+// （repoRoot / defaults / repositories[]）。
 
 interface GitConfig extends GitOptions {
   root: string;
@@ -26,122 +27,30 @@ const EMPTY_CONFIG: GitConfig = {
   branches: [],
   jenkins: {},
   projectMap: [],
-  defaultBranch: "",
-  branchByRepo: {},
+  devDefault: "",
+  devByRepo: {},
+  mergeDefault: "",
+  mergeByRepo: {},
 };
 
 let cached: GitConfig | null = null;
 
-function nonEmptyStrings(value: unknown, fallback: string[]): string[] {
-  if (!Array.isArray(value)) return fallback;
-  const list = value.filter((v): v is string => typeof v === "string" && v.trim() !== "").map((v) => v.trim());
-  return list.length ? list : fallback;
+function str(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
 }
 
-function str(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-/** branches 支持两种形状：数组（旧）= 候选；对象（新）= { candidates, default } */
-function branchesOf(value: unknown): { candidates: string[]; fallback: string } {
-  if (Array.isArray(value)) {
-    const list = nonEmptyStrings(value, []);
-    return { candidates: list, fallback: list[0] ?? "" };
-  }
-  if (value && typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    const candidates = nonEmptyStrings(obj.candidates, []);
-    const fallback = str(obj.default);
-    // default 必须出现在候选里，否则下拉框选不到基准分支
-    if (fallback && !candidates.includes(fallback)) candidates.unshift(fallback);
-    return { candidates, fallback: fallback || candidates[0] || "" };
-  }
-  return { candidates: [], fallback: "" };
-}
-
-/** branches.byRepo：仓库名 -> 覆盖的基准分支（旧形状没有，返回空） */
-function branchByRepoOf(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const byRepo = (value as Record<string, unknown>).byRepo;
-  if (!byRepo || typeof byRepo !== "object" || Array.isArray(byRepo)) return {};
-  const out: Record<string, string> = {};
-  for (const [repo, branch] of Object.entries(byRepo)) {
-    const b = str(branch);
-    if (repo.trim() && b) out[repo.trim()] = b;
-  }
-  return out;
-}
-
-/** projectMap：产品/模块 → 目标仓库（缺 product 或 repo 的条目丢弃） */
-function projectMapOf(value: unknown): GitProjectEntry[] {
-  if (!Array.isArray(value)) return [];
-  const out: GitProjectEntry[] = [];
-  for (const item of value) {
-    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-    const obj = item as Record<string, unknown>;
-    const product = str(obj.product);
-    const repo = str(obj.repo);
-    if (!product || !repo) continue;
-    const keywords = Array.isArray(obj.keywords)
-      ? nonEmptyStrings(obj.keywords, [])
-      : [];
-    const branch = str(obj.branch);
-    out.push({
-      product,
-      repo,
-      ...(keywords.length ? { keywords } : {}),
-      ...(branch ? { branch } : {}),
-    });
-  }
-  return out;
-}
-
-/** jenkins 支持两种形状：完整 URL map（旧）或 { base, jobs }（新） */
-function jenkinsOf(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const obj = value as Record<string, unknown>;
-  const base = str(obj.base);
-  if (base) {
-    const jobs = (obj.jobs && typeof obj.jobs === "object" && !Array.isArray(obj.jobs)
-      ? obj.jobs
-      : {}) as Record<string, unknown>;
-    const out: Record<string, string> = {};
-    for (const [repo, job] of Object.entries(jobs)) {
-      const j = str(job);
-      if (repo.trim() && j) out[repo.trim()] = `${base.replace(/\/+$/, "")}/${j}/build?delay=0sec`;
-    }
-    return out;
-  }
-  // 旧形状：仓库名 -> 完整 URL
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    const url = str(v);
-    if (k.trim() && url) out[k.trim()] = url;
-  }
-  return out;
-}
-
-function fromRootConfig(rc: RootConfig): GitConfig {
-  const repoRootRaw = str(rc.raw.repoRoot);
-  // 相对路径以配置文件所在目录为基准，这样 cwd 是仓库根还是 xiaoqian-manager/ 都成立
+function fromRaw(raw: Record<string, unknown>, dir: string): GitConfig {
+  const settings = parseAppSettings(raw);
+  const repoRootRaw = str(raw.repoRoot);
   const root = repoRootRaw
     ? path.isAbsolute(repoRootRaw)
       ? repoRootRaw
-      : path.resolve(rc.dir, repoRootRaw)
+      : path.resolve(dir, repoRootRaw)
     : "";
-  const branches = branchesOf(rc.raw.branches);
-  return {
-    root,
-    repos: nonEmptyStrings(rc.raw.repos, []),
-    branches: branches.candidates,
-    jenkins: jenkinsOf(rc.raw.jenkins),
-    projectMap: projectMapOf(rc.raw.projectMap),
-    defaultBranch: branches.fallback,
-    branchByRepo: branchByRepoOf(rc.raw.branches),
-  };
+  return { root, ...deriveGitOptions(settings) };
 }
 
-function fromLegacyFile(file: string): GitConfig {
+function fromFixture(file: string): GitConfig {
   let raw: unknown;
   try {
     raw = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -149,17 +58,7 @@ function fromLegacyFile(file: string): GitConfig {
     throw new Error(`配置文件不是合法 JSON：${file}`);
   }
   const obj = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
-  const branches = branchesOf(obj.branches);
-  return {
-    root: str(obj.root),
-    repos: nonEmptyStrings(obj.repos, []),
-    branches: branches.candidates,
-    jenkins: jenkinsOf(obj.jenkins),
-    // 旧形状没有 projectMap / byRepo：默认值退回空
-    projectMap: projectMapOf(obj.projectMap),
-    defaultBranch: branches.fallback,
-    branchByRepo: branchByRepoOf(obj.branches),
-  };
+  return fromRaw(obj, path.dirname(file));
 }
 
 function loadConfig(): GitConfig {
@@ -170,22 +69,15 @@ function loadConfig(): GitConfig {
   if (fromEnv) {
     const p = path.resolve(fromEnv);
     if (fs.existsSync(p)) {
-      cached = fromLegacyFile(p);
+      cached = fromFixture(p);
       return cached;
     }
   }
 
-  // 2~4. febot.config.json（FEBOT_CONFIG 环境变量 → cwd → cwd/..）
-  const rootCfg = readRootConfig();
+  // 2. febot.config.json（FEBOT_CONFIG → FEBOT_WORKSPACE → cwd → cwd/..）
+  const rootCfg: RootConfig | null = readConfig();
   if (rootCfg) {
-    cached = fromRootConfig(rootCfg);
-    return cached;
-  }
-
-  // 5. 旧路径：xiaoqian-manager/data/repos.json
-  const legacy = path.join(DATA_DIR, "repos.json");
-  if (fs.existsSync(legacy)) {
-    cached = fromLegacyFile(legacy);
+    cached = { root: repoRootPath(), ...readDerivedGitOptions() };
     return cached;
   }
 
@@ -195,15 +87,16 @@ function loadConfig(): GitConfig {
 }
 
 export function readGitOptions(): GitOptions {
-  const { repos, branches, jenkins, projectMap, defaultBranch, branchByRepo } = loadConfig();
-  return { repos, branches, jenkins, projectMap, defaultBranch, branchByRepo };
+  const { repos, branches, jenkins, projectMap, devDefault, devByRepo, mergeDefault, mergeByRepo } =
+    loadConfig();
+  return { repos, branches, jenkins, projectMap, devDefault, devByRepo, mergeDefault, mergeByRepo };
 }
 
 // 仓库名必须来自配置白名单，且不含路径分隔符 —— 两道锁一起挡目录穿越。
 export function resolveRepoPath(repo: string): string {
   const cfg = loadConfig();
   if (!cfg.root) {
-    throw new Error("未配置仓库根目录：请在 febot.config.json 填写 repoRoot（或 repos.json 的 root）");
+    throw new Error("未配置仓库根目录：请在工作台「设置 → 仓库与分支」填写仓库根目录");
   }
   if (!cfg.repos.includes(repo)) {
     throw new Error(`仓库不在配置列表中：${repo}`);

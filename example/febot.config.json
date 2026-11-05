@@ -1,20 +1,26 @@
 {
   "repoRoot": "./gitlab",
-  "repos": [],
-  "projectMap": [
-    { "product": "示例产品 A", "keywords": ["移动端"], "repo": "example-repo-mobile" },
-    { "product": "示例产品 A", "repo": "example-repo" },
-    { "product": "示例产品 B", "repo": "example-repo-b" }
+  "jenkinsBase": "",
+  "defaults": {
+    "devBranch": "dev",
+    "mergeBranch": "dev"
+  },
+  "repositories": [
+    {
+      "name": "example-repo",
+      "projects": [{ "name": "示例产品 A" }]
+    },
+    {
+      "name": "example-repo-mobile",
+      "projects": [{ "name": "示例产品 A", "keywords": ["移动端"] }]
+    },
+    {
+      "name": "example-repo-b",
+      "devBranch": "dev",
+      "mergeBranch": "dev",
+      "projects": [{ "name": "示例产品 B" }]
+    }
   ],
-  "branches": {
-    "candidates": ["dev"],
-    "default": "dev",
-    "byRepo": { "example-repo-b": "dev" }
-  },
-  "jenkins": {
-    "base": "",
-    "jobs": {}
-  },
   "teamwork": {
     "base": "",
     "username": "",
@@ -35,5 +41,9 @@
     "hindsight": false
   },
   "codeNameMap": {},
+  "jenkins": {
+    "base": "",
+    "jobs": {}
+  },
   "nextDevOrigins": []
 }

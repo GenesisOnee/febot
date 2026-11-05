@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { STAGE_DEFS, TasksFile, type Task } from "@/lib/domain/schema";
+import { DEFAULT_PIPELINE } from "@/lib/domain/pipeline";
+import { TasksFile, Task, createStages, type TrajectoryItem } from "@/lib/domain/schema";
 import { DATA_DIR } from "@/lib/server/workspace";
 
 // 仅服务端可用（node:fs）。浏览器端严禁 import 本文件。
@@ -17,7 +18,7 @@ function serialize<T>(job: () => T | Promise<T>): Promise<T> {
   const run = chain.then(job, job);
   chain = run.then(
     () => undefined,
-    () => undefined
+    () => undefined,
   );
   return run;
 }
@@ -34,14 +35,14 @@ function writePayload(tasks: Task[]): void {
   fs.renameSync(tmp, TASKS_FILE);
 }
 
-// 旧数据兼容：阶段从 4 个收敛为 3 个（去掉 test）。必须在 safeParse 之前做，
-// 因为 test 已不在 Stage.key 枚举里，先解析会直接失败。
+// 旧数据兼容：按当前 PipelineDefinition 重排/补齐阶段。
+// 已有 key 保留状态；已删除的步骤直接丢弃（旧 test 阶段）；新步骤补 pending。
 function normalizeStages(raw: unknown): unknown {
   const list = Array.isArray(raw) ? (raw as Record<string, unknown>[]) : [];
   const byKey = new Map(list.map((s) => [String(s?.key ?? ""), s]));
-  const stages: Record<string, unknown>[] = STAGE_DEFS.map((d) => {
+  const stages: Record<string, unknown>[] = DEFAULT_PIPELINE.stages.map((d) => {
     const found = byKey.get(d.key);
-    return found ? { ...found } : { key: d.key, name: d.name };
+    return found ? { ...found, name: d.name } : { key: d.key, name: d.name };
   });
   // 阶段状态一律由人工维护，这里不补 done、不改写状态。
   return stages;
@@ -84,7 +85,7 @@ export function writeTasks(tasks: Task[]): Promise<void> {
 
 export function updateTask(
   id: string,
-  mutate: (task: Task) => Task
+  mutate: (task: Task) => Task,
 ): Promise<Task | null> {
   return serialize(() => {
     const { tasks } = readTasks();
@@ -96,73 +97,223 @@ export function updateTask(
   });
 }
 
+// ---------- 新增任务 ----------
+
+export interface CreateTaskInput {
+  title: string;
+  module: string;
+  twStatus?: string;
+  assignee?: string;
+  customerName?: string;
+  demandLevel?: string;
+  description?: string;
+  plannedDescription?: string;
+  assignDescription?: string;
+  attachments?: string[];
+  createdName?: string;
+}
+
+function localId(now: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const stamp =
+    `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}` +
+    `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+  const rand = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  return `local-${stamp}-${rand}`;
+}
+
+function fmtLocal(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  );
+}
+
+export function createTask(input: CreateTaskInput): Promise<Task> {
+  return serialize(() => {
+    const { tasks } = readTasks();
+    const now = new Date();
+    const ids = new Set(tasks.map((t) => t.id));
+    let id = localId(now);
+    while (ids.has(id)) id = localId(now);
+    const task = Task.parse({
+      id,
+      demandId: "",
+      title: input.title,
+      module: input.module,
+      assignee: input.assignee ?? "",
+      twStatus: input.twStatus || "待处理",
+      customerName: input.customerName ?? "",
+      handlers: [],
+      demandLevel: input.demandLevel ?? "",
+      createdName: input.createdName ?? "本机用户",
+      createdTime: now.toISOString(),
+      attachments: input.attachments ?? [],
+      stages: createStages(),
+      trajectory: [
+        {
+          time: fmtLocal(now),
+          operator: input.createdName ?? "本机用户",
+          action: "新建任务",
+          content: input.title,
+        },
+      ],
+      description: input.description ?? "",
+      plannedDescription: input.plannedDescription ?? "",
+      assignDescription: input.assignDescription ?? "",
+      source: "manual",
+      externalId: "",
+      codeSubmission: null,
+      syncedAt: now.toISOString(),
+    });
+    tasks.push(task);
+    writePayload(tasks);
+    return task;
+  });
+}
+
+// ---------- 同步合并（本地全量） ----------
+
 export interface MergeResult {
   created: number;
   updated: number;
+  unchanged: number;
+  /** 兼容旧前端：同步从不删除本地任务，固定为 0 */
   removed: number;
 }
 
-// 本次同步的筛选范围：范围内但远程未返回的本地任务视为平台侧已变化，予以删除
-export interface MergeScope {
-  user: string;
-  statuses: string[]; // 平台状态码，如 ["1","2"]
-  module: string;
+/**
+ * 同步条目：只带来源实际提供的字段。
+ * 用 undefined 表示「远程未提供」，不能拿空串覆盖本地已有值。
+ */
+export interface IncomingTask extends Partial<Task> {
+  id: string;
+  source: string;
+  externalId: string;
 }
 
-const STATUS_LABELS: Record<string, string> = { "1": "待处理", "2": "处理中" };
+/** 远程可覆盖的展示/原文字段（twStatus 与所有本地生成字段永不覆盖） */
+const REMOTE_FIELDS = [
+  "title",
+  "module",
+  "customerName",
+  "assignee",
+  "demandLevel",
+  "description",
+  "assignDescription",
+] as const;
 
-// 本地任务是否落在同步范围内（与 fetchList 的 qqConObj 筛选口径一致）
-function inScope(t: Task, scope: MergeScope): boolean {
-  if (scope.module && t.module !== scope.module) return false;
-  // 平台侧 username 用 CL（包含）匹配，这里保持同样口径
-  if (scope.user && !t.assignee.includes(scope.user)) return false;
-  if (scope.statuses.length) {
-    const labels = scope.statuses.map((c) => STATUS_LABELS[c] || c);
-    if (!labels.includes(t.twStatus)) return false;
+function nonEmpty(v: unknown): boolean {
+  return typeof v === "string" ? v.trim() !== "" : v !== undefined && v !== null;
+}
+
+function trajectoryKey(t: TrajectoryItem): string {
+  return [t.time, t.operator, t.action, t.content].join("|");
+}
+
+function mergeTrajectory(local: TrajectoryItem[], remote: TrajectoryItem[]): TrajectoryItem[] {
+  const seen = new Set(local.map(trajectoryKey));
+  const out = [...local];
+  for (const t of remote) {
+    const k = trajectoryKey(t);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
   }
-  return true;
+  return out;
 }
 
-// 合并同步结果：以远程数据为准——已存在的任务保留本地 stages（用户手动改过的
-// 进度不覆盖），其余平台侧字段刷新；新任务整体插入；范围内远程未返回的任务删除。
-// keepIds：平台侧确认仍存在但本次拉详情失败的 id，跳过删除以免误伤。
+function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * 本地全量合并：远程只做新增/字段增量合并，从不删除本地任务。
+ * 同一来源内按 id 匹配（id 已包含来源前缀，跨来源不会撞）。
+ */
 export function mergeTasks(
-  incoming: Task[],
-  opts?: { scope?: MergeScope; keepIds?: string[] }
+  incoming: IncomingTask[],
+  _opts?: { sourceId?: string },
 ): Promise<MergeResult> {
   return serialize(() => {
     const { tasks } = readTasks();
-    const incomingIds = new Set(incoming.map((t) => t.id));
-    const keepIds = new Set(opts?.keepIds ?? []);
+    const now = new Date().toISOString();
     const byId = new Map(tasks.map((t) => [t.id, t]));
     let created = 0;
     let updated = 0;
-    let removed = 0;
+    let unchanged = 0;
+
     for (const inc of incoming) {
       const existing = byId.get(inc.id);
-      if (existing) {
-        // 阶段进度与规划整理后的描述都是本地人工产物，同步时保留
-        byId.set(inc.id, {
+      if (!existing) {
+        const base = {
+          demandId: "",
+          title: "",
+          module: "",
+          assignee: "",
+          twStatus: "",
+          customerName: "",
+          handlers: [],
+          demandLevel: "",
+          createdName: "",
+          createdTime: "",
+          attachments: [],
+          trajectory: [],
+          description: "",
+          plannedDescription: "",
+          assignDescription: "",
+          codeSubmission: null,
           ...inc,
-          stages: existing.stages,
-          plannedDescription: existing.plannedDescription,
-        });
-        updated++;
-      } else {
-        byId.set(inc.id, inc);
+          source: inc.source,
+          externalId: inc.externalId,
+          stages: createStages(),
+          syncedAt: now,
+        };
+        byId.set(inc.id, Task.parse(base));
         created++;
+        continue;
       }
-    }
-    if (opts?.scope) {
-      for (const t of tasks) {
-        if (incomingIds.has(t.id) || keepIds.has(t.id)) continue;
-        if (inScope(t, opts.scope)) {
-          byId.delete(t.id);
-          removed++;
+
+      // 本地生成/人工维护字段永不覆盖
+      const next: Task = { ...existing };
+      let changed = false;
+      for (const field of REMOTE_FIELDS) {
+        const value = inc[field];
+        if (!nonEmpty(value)) continue;
+        if (next[field] !== value) {
+          // 类型已由 IncomingTask 约束为 string 字段
+          (next as Record<string, unknown>)[field] = value;
+          changed = true;
         }
       }
+      if (Array.isArray(inc.attachments) && !sameJson(next.attachments, inc.attachments)) {
+        next.attachments = inc.attachments;
+        changed = true;
+      }
+      if (Array.isArray(inc.handlers) && !sameJson(next.handlers, inc.handlers)) {
+        next.handlers = inc.handlers;
+        changed = true;
+      }
+      if (Array.isArray(inc.trajectory) && inc.trajectory.length) {
+        const merged = mergeTrajectory(next.trajectory, inc.trajectory);
+        if (merged.length !== next.trajectory.length) {
+          next.trajectory = merged;
+          changed = true;
+        }
+      }
+      if (next.syncedAt !== now) changed = true;
+      next.syncedAt = now;
+
+      if (changed) {
+        byId.set(inc.id, next);
+        updated++;
+      } else {
+        unchanged++;
+      }
     }
+
     writePayload([...byId.values()]);
-    return { created, updated, removed };
+    return { created, updated, unchanged, removed: 0 };
   });
 }

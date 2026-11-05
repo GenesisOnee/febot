@@ -3,9 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, CornerDownLeft, Loader2, SquareCheckBig, SquareX } from "lucide-react";
+import {
+  Check,
+  CornerDownLeft,
+  Loader2,
+  SquareCheckBig,
+  SquareX,
+  Upload,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { CodeSubmission } from "@/lib/domain/schema";
 import type { DiffSummary, PipelineRun } from "@/lib/domain/run";
+import { isTerminalStatus } from "@/lib/domain/run";
 import DiffPanel from "./DiffPanel";
 import { RunStatusBadge } from "./run-status";
 
@@ -16,20 +25,28 @@ export default function ReviewView({
   initialRun,
   taskTitle,
   taskModule,
+  mergeBranch = "",
+  codeSubmission: initialSubmission = null,
 }: {
   initialRun: PipelineRun;
   taskTitle: string;
   taskModule: string;
+  /** 该仓库解析出的合并目标分支；为空表示未配置，禁止提交 */
+  mergeBranch?: string;
+  codeSubmission?: CodeSubmission | null;
 }) {
   const router = useRouter();
   const runId = initialRun.id;
   const [run, setRun] = useState(initialRun);
   const [selected, setSelected] = useState<string[]>([]);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [busy, setBusy] = useState<"" | "accept" | "reject">("");
+  const [busy, setBusy] = useState<"" | "accept" | "reject" | "submit">("");
   const [notice, setNotice] = useState("");
   const [files, setFiles] = useState<string[]>([]);
   const [accepted, setAccepted] = useState(Boolean(initialRun.acceptedAt));
+  const [submission, setSubmission] = useState<CodeSubmission | null>(
+    initialSubmission
+  );
 
   // 只用文件列表做「全选」，patch 仍由 DiffPanel 懒加载
   useEffect(() => {
@@ -95,11 +112,56 @@ export default function ReviewView({
     [initialRun.baseSha, router, runId, selected]
   );
 
+  const submit = useCallback(async () => {
+    if (!mergeBranch) return;
+    if (!window.confirm(`提交全部工作区改动，并推送到 ${mergeBranch}？`)) return;
+    setBusy("submit");
+    setNotice("");
+    try {
+      const res = await fetch(
+        `/api/runs/${encodeURIComponent(runId)}/submit-code`,
+        { method: "POST" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        warning?: string;
+        run?: PipelineRun;
+        codeSubmission?: CodeSubmission;
+        git?: { commitSha?: string };
+      };
+      if (!res.ok) {
+        setNotice(json.error ?? `提交失败（${res.status}）`);
+        return;
+      }
+      if (json.run) setRun(json.run);
+      if (json.codeSubmission) setSubmission(json.codeSubmission);
+      setAccepted(true);
+      const sha = (json.git?.commitSha ?? json.codeSubmission?.commit ?? "").slice(0, 8);
+      const branch = json.codeSubmission?.targetBranch ?? mergeBranch;
+      setNotice(
+        json.warning || `已提交 ${sha} → ${branch}，并自动标记接受`
+      );
+      router.refresh();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "提交失败");
+    } finally {
+      setBusy("");
+    }
+  }, [mergeBranch, router, runId]);
+
+  const submitBlockedReason = !isTerminalStatus(run.status)
+    ? "会话结束后才能提交代码"
+    : files.length === 0
+      ? "当前没有可提交的改动"
+      : !mergeBranch
+        ? "请先在设置中配置该仓库的合并分支"
+        : "";
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] min-h-[520px] flex-col gap-2 p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button asChild variant="ghost" size="sm">
-          <Link href={`/runs/${encodeURIComponent(runId)}`}>
+          <Link href={`/?run=${encodeURIComponent(runId)}`}>
             <CornerDownLeft className="h-3.5 w-3.5" />
             返回会话
           </Link>
@@ -110,6 +172,12 @@ export default function ReviewView({
         {accepted && (
           <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
             <Check className="h-3 w-3" /> 已接受
+          </span>
+        )}
+        {submission && (
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Upload className="h-3 w-3" />
+            已提交 {submission.commit.slice(0, 8)} → {submission.targetBranch}
           </span>
         )}
         <span className="ml-auto font-mono text-[11px] text-muted-foreground">
@@ -155,8 +223,21 @@ export default function ReviewView({
         </span>
         <Button
           size="sm"
-          variant="outline"
           className="ml-auto"
+          title={submitBlockedReason || undefined}
+          disabled={busy !== "" || !!submitBlockedReason}
+          onClick={() => void submit()}
+        >
+          {busy === "submit" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Upload className="h-3.5 w-3.5" />
+          )}
+          代码提交
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           disabled={busy !== "" || run.status === "cancelled"}
           onClick={() => void act("accept")}
         >

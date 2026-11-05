@@ -128,10 +128,20 @@ export default function ReviewQueue({ tasks }: { tasks: TaskBrief[] }) {
                 {run.endedAt ? `收口于 ${fmtDateTime(run.endedAt)}` : `开始于 ${fmtDateTime(run.startedAt)}`}
               </span>
               <Button asChild size="xs" variant="outline">
-                <Link href={`/runs/${encodeURIComponent(run.id)}/review`}>审阅</Link>
+                <Link
+                  href={`/runs/${encodeURIComponent(run.id)}/review`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  审阅
+                </Link>
               </Button>
               <Button asChild size="xs" variant="ghost">
-                <Link href={`/runs/${encodeURIComponent(run.id)}`}>
+                <Link
+                  href={`/?run=${encodeURIComponent(run.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <TerminalSquare className="h-3 w-3" />
                   会话
                 </Link>

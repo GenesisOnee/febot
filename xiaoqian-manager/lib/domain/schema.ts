@@ -1,25 +1,22 @@
 import { z } from "zod";
+import { DEFAULT_PIPELINE } from "./pipeline";
 
 // 流水线会话（run）相关类型：PipelineRun / RunStatus / TimelineEvent / DiffFile
 export * from "./run";
+export { STAGE_KEYS } from "./pipeline";
 
-// 固定三节点：planner 计划 -> coder 写代码 -> 上传部署（对应总流程 ②③④）
-// key 保留用户原文 "planer"
-export const STAGE_KEYS = ["planer", "coder", "deploy"] as const;
-export type StageKey = (typeof STAGE_KEYS)[number];
-
-// failed 只由流水线收口写入：窗口异常退出/未产出完成标记，停在终态以免前端无限轮询
+// 阶段 key 不再固定枚举：新增/调整步骤只改 DEFAULT_PIPELINE。
+// 旧任务数据里的 key 原样保留（normalizeStages 按定义重排/补齐）。
 export const StageStatus = z.enum(["pending", "active", "done", "failed"]);
 export type StageStatus = z.infer<typeof StageStatus>;
 
-export const STAGE_DEFS: { key: StageKey; name: string }[] = [
-  { key: "planer", name: "计划" },
-  { key: "coder", name: "写代码" },
-  { key: "deploy", name: "上传部署" },
-];
+export const STAGE_DEFS: { key: string; name: string }[] = DEFAULT_PIPELINE.stages.map((s) => ({
+  key: s.key,
+  name: s.name,
+}));
 
 export const Stage = z.object({
-  key: z.enum(STAGE_KEYS),
+  key: z.string().min(1),
   name: z.string(),
   owner: z.string().default(""),
   status: StageStatus.default("pending"),
@@ -46,39 +43,49 @@ export type TrajectoryItem = z.infer<typeof TrajectoryItem>;
 export const TaskHandler = z.object({
   taskId: z.string().default(""),
   username: z.string().default(""),
-  maxHour: z.number().nullable().default(null),
   status: z.string().default(""),
 });
 export type TaskHandler = z.infer<typeof TaskHandler>;
+
+// 代码提交记录：本地生成，同步永不覆盖；仅保留最近一次
+export const CodeSubmission = z.object({
+  repo: z.string(),
+  targetBranch: z.string(),
+  commit: z.string(),
+  at: z.string(),
+  sourceRunId: z.string().default(""),
+});
+export type CodeSubmission = z.infer<typeof CodeSubmission>;
 
 export const Task = z.object({
   id: z.string(),
   demandId: z.string().default(""),
   title: z.string(),
   module: z.string().default(""),
-  customerName: z.string().default(""),
   assignee: z.string().default(""),
-  handlers: z.array(TaskHandler).default([]),
   twStatus: z.string().default(""),
-  leval: z.string().default(""),
-  taskType: z.string().default(""),
+
+  // 可选展示字段：缺失时不展示
+  customerName: z.string().default(""),
+  handlers: z.array(TaskHandler).default([]),
   demandLevel: z.string().default(""),
-  maxHour: z.number().nullable().default(null),
-  developmentHour: z.number().nullable().default(null),
-  planStart: z.string().nullable().default(null),
-  planEnd: z.string().nullable().default(null),
-  factStart: z.string().nullable().default(null),
-  factFinish: z.string().nullable().default(null),
   createdName: z.string().default(""),
   createdTime: z.string().default(""),
-  version: z.string().default(""),
-  stages: z.array(Stage).length(STAGE_DEFS.length),
+  attachments: z.array(z.string()).default([]),
+
+  // 工作流字段
+  stages: z.array(Stage),
   trajectory: z.array(TrajectoryItem).default([]),
   description: z.string().default(""),
   // 研发人员在「计划」节点整理后的描述；为空时回退到平台原文 description
   plannedDescription: z.string().default(""),
   assignDescription: z.string().default(""),
-  attachments: z.array(z.string()).default([]),
+
+  // 来源与提交
+  source: z.string().default("teamwork"),
+  externalId: z.string().default(""),
+  codeSubmission: CodeSubmission.nullable().default(null),
+
   syncedAt: z.string(),
 });
 export type Task = z.infer<typeof Task>;

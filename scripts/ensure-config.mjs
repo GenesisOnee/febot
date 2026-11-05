@@ -10,7 +10,7 @@ const TEMPLATES = [
   {
     src: 'example/febot.config.json',
     dst: 'febot.config.json',
-    hint: '请填入 repoRoot / repos / projectMap / branches（default + byRepo）/ jenkins / teamwork / nextDevOrigins',
+    hint: '请填入 repoRoot / jenkinsBase / defaults（devBranch + mergeBranch）/ repositories[] / teamwork / nextDevOrigins；首次启动也可在应用设置里填写',
   },
   {
     src: 'example/tasks.md',

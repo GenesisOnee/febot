@@ -1,4 +1,4 @@
-import type { StageKey, StageStatus } from "./schema";
+import type { StageStatus } from "./schema";
 
 // 状态 -> 视觉映射，纯函数、无 Node 依赖，浏览器端可安全 import。
 
@@ -54,16 +54,16 @@ export function stageVisual(status: StageStatus): StageVisual {
   return VISUALS[status];
 }
 
-export const STAGE_ICONS: Record<StageKey, string> = {
+export const STAGE_ICONS: Record<string, string> = {
   planer: "ClipboardList",
   coder: "Code2",
-  deploy: "Rocket",
+  deploy: "CheckCheck",
 };
 
 export interface StageFlowEdge {
   id: string;
-  source: StageKey;
-  target: StageKey;
+  source: string;
+  target: string;
 }
 
 export const STAGE_EDGES: StageFlowEdge[] = [

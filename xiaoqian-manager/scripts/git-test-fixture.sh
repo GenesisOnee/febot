@@ -45,8 +45,17 @@ else
   printf 'two\n' >> "$REPO/a.txt"
 fi
 
-cat > "$BASE/repos.json" <<EOF
-{"root":"$BASE/repos","repos":["t-repo"],"branches":["dev","dev-x"]}
+REPO_ROOT_JSON=$(cygpath -m "$BASE/repos")
+cat > "$BASE/febot.config.json" <<EOF
+{
+  "repoRoot": "$REPO_ROOT_JSON",
+  "jenkinsBase": "",
+  "defaults": { "devBranch": "dev-x", "mergeBranch": "dev" },
+  "repositories": [{ "name": "t-repo", "projects": [] }],
+  "teamwork": {},
+  "features": { "hindsight": false },
+  "nextDevOrigins": []
+}
 EOF
 
 echo "fixture ready: $BASE (phase=$PHASE, on $(git -C "$REPO" rev-parse --abbrev-ref HEAD))"

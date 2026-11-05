@@ -100,7 +100,6 @@ export default function TaskTabs({ task }: { task: Task }) {
               <thead>
                 <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2 font-medium">开发人</th>
-                  <th className="px-3 py-2 font-medium">最大工时</th>
                   <th className="px-3 py-2 font-medium">状态</th>
                 </tr>
               </thead>
@@ -119,9 +118,6 @@ export default function TaskTabs({ task }: { task: Task }) {
                           （当前任务）
                         </span>
                       )}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">
-                      {h.maxHour ?? "-"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">{h.status || "-"}</td>
                   </tr>

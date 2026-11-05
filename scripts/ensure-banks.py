@@ -39,11 +39,11 @@ STATIC_RULES = [
      "需要进行 node_modules 修改"),
     ("commit message 单行规范：feat(R-<别名>): <标题>，只含标题一行、不加正文。标题含中文时用 -F 写消息文件，勿经 bash 中文参数。",
      "commit message 单行规范"),
-    ("基准分支由配置决定：从 febot.config.json 的 branches.default 读取（默认 dev，非 master），候选分支见 branches.candidates；主仓 checkout 常驻该分支。",
+    ("基准分支由配置决定：从 febot.config.json 的 repositories[].devBranch 读取，缺省回退 defaults.devBranch（默认 dev，非 master）；主仓 checkout 常驻该分支。",
      "基准分支由配置决定"),
     ("AgentTeam 直接在主仓基准分支工作区改代码（不建 worktree、不切分支），改动以未提交形式留在工作区，绝不 add/commit/push 远程；远程提交合并是 xiaoqian deploy 阶段由人完成。",
      "直接在主仓基准分支工作区改代码"),
-    ("开工门禁：需求开工前主仓工作区必须干净（当前分支 == febot.config.json 的 branches.default，且 git status --porcelain 为空），不干净就停下来等人工在 ④ 步提交；因共用同一工作区，同一仓库同一时间只能跑一个需求。",
+    ("开工门禁：需求开工前主仓工作区必须干净（当前分支 == febot.config.json 里该仓库的开发分支，且 git status --porcelain 为空），不干净就停下来等人工在 ④ 步提交；因共用同一工作区，同一仓库同一时间只能跑一个需求。",
      "开工门禁"),
 ]
 

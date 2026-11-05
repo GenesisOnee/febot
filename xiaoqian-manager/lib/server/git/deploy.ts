@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { assertBranch, resolveRepoPath } from "./config";
 
 // 部署节点：在主仓 checkout 上「拉取最新 → 提交改动 → 推源分支 → 把这一个提交
@@ -11,8 +13,11 @@ import { assertBranch, resolveRepoPath } from "./config";
 
 export interface DeployGitResult {
   source: string;
+  targetBranch: string;
   committed: boolean;
   cherryPicked: boolean;
+  /** 本次新产生的提交；工作区本来干净时为空串 */
+  commitSha: string;
 }
 
 interface GitRunOptions {
@@ -98,6 +103,21 @@ export function runDeployGit(opts: {
   return serializeRepo(cwd, () => deploy(cwd, opts.targetBranch, opts.message));
 }
 
+// 审阅页「代码提交」：工作目录直接取 run.repoRoot（定仓结果），不经过仓库名白名单；
+// 仓库名只用于查合并分支配置，由调用方解析。
+export function submitCode(opts: {
+  repoRoot: string;
+  targetBranch: string;
+  message: string;
+}): Promise<DeployGitResult> {
+  const cwd = path.resolve(opts.repoRoot);
+  if (!fs.existsSync(path.join(cwd, ".git"))) {
+    throw new Error(`工作目录不是 git 仓库：${cwd}`);
+  }
+  assertBranch(opts.targetBranch);
+  return serializeRepo(cwd, () => deploy(cwd, opts.targetBranch, opts.message));
+}
+
 function deploy(cwd: string, targetBranch: string, message: string): DeployGitResult {
   const source = git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
   if (!source || source === "HEAD") {
@@ -124,13 +144,15 @@ function deploy(cwd: string, targetBranch: string, message: string): DeployGitRe
   }
 
   git(cwd, ["push"], { timeout: NET_TIMEOUT });
+  // 工作区本来就干净（改动已被手工提交过）时，提交记录仍指向当前 HEAD
+  if (!commitSha) commitSha = git(cwd, ["rev-parse", "HEAD"]).trim();
 
   let cherryPicked = false;
   if (committed && targetBranch !== source) {
     cherryPicked = cherryPickTo(cwd, source, targetBranch, commitSha);
   }
 
-  return { source, committed, cherryPicked };
+  return { source, targetBranch, committed, cherryPicked, commitSha };
 }
 
 function cherryPickTo(cwd: string, source: string, targetBranch: string, commitSha: string): boolean {

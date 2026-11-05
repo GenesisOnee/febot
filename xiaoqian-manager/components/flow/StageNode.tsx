@@ -4,12 +4,12 @@ import { memo, useState } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import {
   Check,
+  CheckCheck,
   CheckCircle2,
   ClipboardList,
   Code2,
   Loader2,
   Play,
-  Rocket,
   XCircle,
 } from "lucide-react";
 import type { Stage } from "@/lib/domain/schema";
@@ -23,7 +23,7 @@ export type StageNodeData = {
   onStartPipeline?: () => void;
   /** 计划描述为空时禁用「写代码」▶，避免点下去才被 API 422 拦回 */
   startDisabled?: boolean;
-  /** 「上传部署」的直接完成：不操作仓库代码，只完成协作平台任务 */
+  /** 「标记完成」：只同步远程状态，不操作仓库代码 */
   onDirectComplete?: () => void;
 };
 export type StageNodeType = Node<StageNodeData, "stage">;
@@ -31,7 +31,7 @@ export type StageNodeType = Node<StageNodeData, "stage">;
 const ICONS = {
   planer: ClipboardList,
   coder: Code2,
-  deploy: Rocket,
+  deploy: CheckCheck,
 } as const;
 
 function StageNode({ data }: NodeProps<StageNodeType>) {
@@ -39,7 +39,7 @@ function StageNode({ data }: NodeProps<StageNodeType>) {
     data;
   const [starting, setStarting] = useState(false);
   const v = stageVisual(stage.status);
-  const Icon = ICONS[stage.key];
+  const Icon = ICONS[stage.key as keyof typeof ICONS] ?? ClipboardList;
   const canStart =
     stage.key === "coder" &&
     (stage.status === "pending" || stage.status === "failed") &&
@@ -126,7 +126,7 @@ function StageNode({ data }: NodeProps<StageNodeType>) {
       {canDirectComplete && (
         <button
           type="button"
-          title="直接完成：不操作仓库代码，只把协作平台中的任务标记为完成"
+          title="标记完成：只同步远程任务状态，不操作仓库代码"
           className="absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-85"
           onClick={(e) => {
             e.stopPropagation();

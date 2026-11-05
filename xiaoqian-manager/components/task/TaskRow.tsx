@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Stage, Task } from "@/lib/domain/schema";
 import type { PipelineRun } from "@/lib/domain/run";
+import { cn } from "@/lib/utils";
 import { RunStatusBadge } from "@/components/pipeline/run-status";
 import TaskMeta from "./TaskMeta";
 import TaskTabs from "./TaskTabs";
@@ -39,6 +40,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function TaskRow({
   task,
   run,
+  selected = false,
   onOpenStage,
   onStartPipeline,
   onDirectComplete,
@@ -46,9 +48,10 @@ export default function TaskRow({
 }: {
   task: Task;
   run?: PipelineRun;
+  selected?: boolean;
   onOpenStage: (stage: Stage) => void;
   onStartPipeline: (taskId: string) => void;
-  onDirectComplete: (taskId: string) => void;
+  onDirectComplete: () => void;
   onOpenRun?: (runId: string) => void;
 }) {
   const doneCount = task.stages.filter((s) => s.status === "done").length;
@@ -84,14 +87,18 @@ export default function TaskRow({
   return (
     <AccordionItem
       value={task.id}
-      className="rounded-xl border bg-card shadow-sm"
+      className={cn(
+        "rounded-xl border bg-card shadow-sm",
+        selected && "border-primary ring-1 ring-primary/40",
+      )}
     >
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex flex-1 items-center gap-3 text-left">
+      <AccordionTrigger className="min-w-0 px-4 py-3 hover:no-underline">
+        {/* 每一层 flex 都要 min-w-0，否则左栏按内容撑开、把右侧进度挤出卡片 */}
+        <div className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="truncate font-medium">{task.title}</span>
-              <StatusBadge status={task.twStatus} />
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 truncate font-medium">{task.title}</span>
+              {/* <StatusBadge status={task.twStatus} /> */}
               {run && <RunStatusBadge status={run.status} />}
               <span
                 title="复制标题"
@@ -145,12 +152,12 @@ export default function TaskRow({
                 onOpen={onOpenStage}
                 onStartPipeline={() => onStartPipeline(task.id)}
                 startDisabled={startDisabled}
-                onDirectComplete={() => onDirectComplete(task.id)}
+                onDirectComplete={onDirectComplete}
               />
             </div>
           </div>
           <p className="mt-1 px-2 text-xs text-muted-foreground">
-            点击节点可更新阶段状态；点「计划」节点可整理需求描述，点「写代码」节点 ▶ 可开始流水线（AI 编码+审查+修复）；点「上传部署」节点 ✓ 可直接完成（不操作仓库代码，只完成协作平台任务）
+            点击节点可更新阶段状态；点「计划」节点可整理需求描述，点「写代码」节点 ▶ 可开始流水线（AI 编码+审查+修复）；点「已完成」节点 ✓ 可标记完成（只同步远程状态，不操作仓库代码）
           </p>
         </div>
         <div className="mt-3">

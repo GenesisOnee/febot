@@ -116,11 +116,6 @@ function str(v: unknown): string {
   return v === null || v === undefined ? "" : String(v);
 }
 
-function toNum(v: unknown): number | null {
-  if (v === null || v === undefined || String(v).trim() === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
 
 function mapTrajectory(traj: TwRow[]): TrajectoryItem[] {
   return [...traj]
@@ -151,7 +146,6 @@ function mapHandlers(rows: TwRow[]): TaskHandler[] {
     return {
       taskId: str(r.id),
       username: name.value || name.text,
-      maxHour: toNum(r.max_hour),
       status:
         st.text && !/^\d+$/.test(st.text) ? st.text : STATUS_TEXT[st.value] || st.value,
     };
@@ -191,24 +185,18 @@ export function rowToTask(
     assignee: str(pick("username")),
     handlers: mapHandlers(demandTasks),
     twStatus: statusLabel(row, detail),
-    leval: decodeField(pick("leval")).text,
-    taskType: decodeField(pick("task_type")).text,
     demandLevel: decodeField(pick("demand_level")).text,
-    maxHour: toNum(pick("max_hour")),
-    developmentHour: toNum(pick("development_hour")),
-    planStart: str(pick("start_time")) || null,
-    planEnd: str(pick("end_time")) || null,
-    factStart: str(pick("fact_start_time")) || null,
-    factFinish: str(pick("fact_finish_time")) || null,
     createdName: str(pick("created_name")),
     createdTime: str(pick("created_time")),
-    version: str(pick("version")),
     stages: createStages(),
     trajectory: mapTrajectory(traj),
     description: htmlToText(d.demand_text || row.description),
     plannedDescription: "",
     assignDescription: htmlToText(d.assign_description || row.assign_description),
     attachments: [...new Set(imgs)],
+    source: "teamwork",
+    externalId: id,
+    codeSubmission: null,
     syncedAt: new Date().toISOString(),
   };
 }

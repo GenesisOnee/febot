@@ -45,23 +45,36 @@ runner 启动时在 `xiaoqian-manager/data/runner.json` 写入 `{pid,port,httpUr
 
 | 文件                          | 用途                                                             |
 | ----------------------------- | ---------------------------------------------------------------- |
-| `../febot.config.json`        | 仓库根 / 仓库列表 / 分支白名单 / Jenkins / 协作平台（`teamwork` 段，含 `loginName` / `password`） |
+| `../febot.config.json`        | 仓库根 / `repositories[]` 仓库登记表（分支、Jenkins、项目）/ 协作平台（`teamwork` 段，含 `loginName` / `password`） |
 | `data/tasks.json`             | 同步下来的需求（本目录内，已 gitignore）                          |
+| `data/task-sources/<id>/`     | 上传的自定义任务来源脚本（`current/` + `versions/` + `last-run.json`） |
 
 两份配置都由仓库根的 `yarn setup` 生成模板，**不会自动覆盖**已存在的内容。
-`teamwork` 段留空时功能软降级：仓库/分支下拉为空、同步接口返回 400 并提示去配置，其余页面照常。
+首次启动若配置未初始化，会弹出可视化设置引导（扫描仓库根目录、维护 `repositories[]`、上传任务来源脚本）；保存仍写回 `febot.config.json`，无需重启。`teamwork` 段留空时功能软降级：同步接口返回 400 并提示去配置，其余页面照常。
 
 ## 功能与代码位置
 
 | 步骤           | 触发点                              | 实现                                                              |
 | -------------- | ----------------------------------- | ----------------------------------------------------------------- |
 | ① 获取需求     | 右上角「同步」                      | `lib/server/teamwork/client.ts`（`fetchList`）+ `mapper.ts`       |
-| ② 规划         | 「计划」节点弹框整理/修改需求描述   | `components/task/StageSheet.tsx`（`plannedDescription`）          |
-| ③ 编码+审查+修复 | 「写代码」节点 ▶ → 在 runner 的 PTY 里跑 `claude /pipeline`，跳到 `/runs/<任务ID>` 会话页 | 前端 `components/pipeline/`；runner `scripts/runner.ts` + `lib/runner/`；剧本 `.claude/commands/pipeline.md` |
-| ④ 提交合并     | deploy 阶段选仓库 + 目标分支点完成  | `lib/server/git/deploy.ts`（pull → commit → push → cherry-pick）  |
+| ② 规划         | 「计划」节点弹框整理/修改需求描述   | `components/task/StageDialog.tsx`（`plannedDescription`）         |
+| ③ 编码+审查+修复 | 「写代码」节点 ▶ → 在 runner 的 PTY 里跑 `claude /pipeline`，右侧常驻会话面板 | 前端 `components/pipeline/`；runner `scripts/runner.ts` + `lib/runner/`；剧本 `.claude/commands/pipeline.md` |
+| ④ 提交合并     | 独立审阅页「代码提交」              | `app/api/runs/[id]/submit-code` → `lib/server/git/deploy.ts`（pull → commit → push → cherry-pick） |
 | ⑤ 填写工时     | 右上角「今日工时」                  | `components/timesheet/TimesheetEntry.tsx`（新标签页跳转协作平台工时页面） |
 
-> 流程图只有三个节点：计划 → 写代码 → 上传部署（对应总流程 ②③④）。「人工测试」不再单列；人工验收在主仓工作区自行进行。
+> 流程图只有三个节点：计划 → 写代码 → 标记完成（对应总流程 ②③④）。「标记完成」只同步远程状态，代码提交在审阅页单独进行。
+
+## 设置与任务来源
+
+- 入口：工作台右上角齿轮；配置未初始化时首次启动自动弹出。三个 Tab：**仓库与分支** / **任务来源** / **开发环境**。
+- 保存写回 `../febot.config.json`（临时文件 + 原子 rename），不落数据库；读取按 mtime 失效缓存，保存后主应用与 `scripts/` 立即读到新值。
+- 写接口仅限本机回环（`lib/server/config/request-guard.ts`）；`password` / `cookie` / `autograph` 只写不读。
+- 任务来源统一走 `lib/server/task-sources/`：
+  - `registry.ts` 汇总内置协作平台、自定义脚本、手动新建三类来源；
+  - `teamwork.ts` 包装原 client；`script.ts` 读取 `febot.source.json`，用独立子进程跑拉取 / 完成脚本（`shell: false`、清理环境变量、超时 + 输出截断）；
+  - 同步编排在 `lib/server/tasks/sync-service.ts`，**本地全量合并**，从不删除本地任务。
+- 自定义脚本的 manifest 字段、stdout 契约、完成脚本约定见仓库根 [README §9.2](../README.md#92-自定义任务来源脚本)。
+- 阶段与提交入口：新代码用 `PATCH /api/tasks/[id]/stages/[stageKey]`（`lib/server/stages/transition.ts` + `registry.ts`）；旧 `PATCH /api/tasks/[id]/stage` 保留为薄适配层。「代码提交」走 `POST /api/runs/[id]/submit-code`，成功后自动接受改动。
 
 ## 调试脚本
 

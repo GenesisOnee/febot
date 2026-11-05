@@ -1,152 +1,59 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { STAGE_KEYS, StageStatus } from "@/lib/domain/schema";
-import { readTasks, updateTask } from "@/lib/server/store";
-import { pushDevOperation } from "@/lib/server/teamwork/client";
-import { buildDeployMessage, runDeployGit } from "@/lib/server/git/deploy";
+import { StageStatus } from "@/lib/domain/schema";
+import { applyStageTransition } from "@/lib/server/stages/transition";
+import { StageTransitionError } from "@/lib/server/stages/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const Body = z
-  .object({
-    stageKey: z.enum(STAGE_KEYS),
-    status: StageStatus,
-    owner: z.string().optional(),
-    note: z.string().optional(),
-    // 仅「计划」节点使用：研发人员整理后的需求描述
-    plannedDescription: z.string().optional(),
-    repo: z.string().optional(),
-    targetBranch: z.string().optional(),
-    // 直接完成：跳过提交/推送/cherry-pick，只把协作平台中的任务标记完成
-    skipGit: z.boolean().optional(),
-  })
-  .superRefine((v, ctx) => {
-    // 部署节点完成要动代码，必须先选好仓库与目标分支；直接完成模式不动代码
-    if (v.stageKey === "deploy" && v.status === "done" && !v.skipGit) {
-      if (!v.repo) {
-        ctx.addIssue({ code: "custom", message: "部署节点需要选择仓库", path: ["repo"] });
-      }
-      if (!v.targetBranch) {
-        ctx.addIssue({
-          code: "custom",
-          message: "部署节点需要选择目标分支",
-          path: ["targetBranch"],
-        });
-      }
-    }
-  });
+// 旧接口保留为薄适配层：内部转调通用阶段转换。
+// 新代码请使用 PATCH /api/tasks/[id]/stages/[stageKey]。
+
+const Body = z.object({
+  stageKey: z.string().min(1),
+  status: StageStatus,
+  owner: z.string().optional(),
+  note: z.string().optional(),
+  plannedDescription: z.string().optional(),
+  // 兼容别名：旧「直接完成」不操作仓库代码；远程完成仍按来源执行
+  skipGit: z.boolean().optional(),
+  localOnly: z.boolean().optional(),
+});
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let id = "";
+  const { id } = await params;
+  let raw: unknown;
   try {
-    id = (await params).id;
-    let raw: unknown;
-    try {
-      raw = await req.json();
-    } catch {
-      console.warn(`[stage] ${id} 请求体不是合法 JSON`);
-      return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
-    }
-    const parsed = Body.safeParse(raw);
-    if (!parsed.success) {
-      console.warn(`[stage] ${id} 请求体校验失败`, parsed.error.issues);
-      return NextResponse.json({ error: "请求体校验失败" }, { status: 400 });
-    }
-    const {
-      stageKey,
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+  }
+  const parsed = Body.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "请求体校验失败" }, { status: 400 });
+  }
+  const { stageKey, status, owner, note, plannedDescription, skipGit, localOnly } =
+    parsed.data;
+  try {
+    const task = await applyStageTransition(id, stageKey, {
       status,
       owner,
       note,
-      plannedDescription,
-      repo,
-      targetBranch,
-      skipGit,
-    } = parsed.data;
-    console.log(`[stage] ${id} 收到请求`, {
-      stageKey,
-      status,
-      repo,
-      targetBranch,
-      skipGit,
+      payload: plannedDescription !== undefined ? { plannedDescription } : {},
+      options: { skipGit, localOnly },
     });
-    const existing = readTasks().tasks.find((t) => t.id === id);
-    if (!existing) {
-      console.warn(`[stage] ${id} 任务不存在`);
-      return NextResponse.json({ error: "task not found" }, { status: 404 });
-    }
-    // 部署节点完成：先把该任务的代码提交/推送/cherry-pick 到目标分支；协作平台任务点完成。
-    // skipGit = 直接完成：不碰仓库代码，只写协作平台并把三个节点一并标为已完成。
-    const directComplete = stageKey === "deploy" && status === "done" && !!skipGit;
-    if (stageKey === "deploy" && status === "done") {
-      console.log(
-        `[stage] ${id} 进入${directComplete ? "直接完成" : "部署"}流程`
-      );
-      // 已部署过就拒绝重复提交，避免重跑 commit/push/cherry-pick
-      const deployStage = existing.stages.find((s) => s.key === "deploy");
-      if (deployStage?.status === "done") {
-        console.warn(`[stage] ${id} 已部署完成，拒绝重复提交`);
-        return NextResponse.json(
-          { error: "该任务已部署完成，不能重复提交" },
-          { status: 409 }
-        );
-      }
-      if (!directComplete) {
-        // 任一步失败就中断 —— 不写协作平台，也不落本地 tasks.json
-        console.log(`[stage] ${id} 步骤1/3 提交/推送/cherry-pick 开始`, {
-          repo,
-          targetBranch,
-        });
-        const gitResult = await runDeployGit({
-          repo: repo as string,
-          targetBranch: targetBranch as string,
-          message: buildDeployMessage(id, existing.title),
-        });
-        console.log(`[stage] ${id} 步骤1/3 提交/推送/cherry-pick 完成`, gitResult);
-      } else {
-        console.log(`[stage] ${id} 步骤1/3 已跳过（直接完成，不操作仓库代码）`);
-      }
-      // 先写协作平台；失败（含登录失效）则中断，不落本地 tasks.json
-      console.log(`[stage] ${id} 步骤2/3 回写协作平台 开始`);
-      await pushDevOperation(id, existing.plannedDescription);
-      console.log(`[stage] ${id} 步骤2/3 回写协作平台 完成`);
-    }
-    const now = new Date().toISOString();
-    console.log(`[stage] ${id} 步骤3/3 更新本地任务状态 开始`, { stageKey, status });
-    const task = await updateTask(id, (t) => ({
-      ...t,
-      // 只有「计划」节点能改描述；传空串表示回退到平台原文
-      ...(stageKey === "planer" && plannedDescription !== undefined
-        ? { plannedDescription }
-        : {}),
-      stages: t.stages.map((s) => {
-        // 直接完成：任务已在平台闭环，三个节点一起收口，避免进度停在 1/3
-        const isTarget = s.key === stageKey || directComplete;
-        if (!isTarget) return s;
-        return {
-          ...s,
-          status,
-          owner: s.key === stageKey ? (owner ?? s.owner) : s.owner,
-          note: s.key === stageKey ? (note ?? s.note) : s.note,
-          startedAt:
-            status === "pending" ? null : (s.startedAt ?? now),
-          finishedAt:
-            status === "done" || status === "failed"
-              ? (s.finishedAt ?? now)
-              : null,
-        };
-      }),
-    }));
-    if (!task) {
-      console.warn(`[stage] ${id} 更新失败：任务不存在`);
-      return NextResponse.json({ error: "task not found" }, { status: 404 });
-    }
-    console.log(`[stage] ${id} 步骤3/3 更新本地任务状态 完成`);
     return NextResponse.json({ task });
   } catch (e) {
+    if (e instanceof StageTransitionError) {
+      return NextResponse.json(
+        { error: e.message, code: e.code },
+        { status: e.status }
+      );
+    }
     console.error(`[stage] ${id} PATCH 执行失败`, e);
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "unknown error" },

@@ -117,7 +117,7 @@ function notify(run: PipelineRun): void {
     const n = new Notification(title, { body, tag: `${run.id}:${run.status}` });
     n.onclick = () => {
       window.focus();
-      window.open(`/runs/${run.id}`, "_self");
+      window.open(`/?run=${encodeURIComponent(run.id)}`, "_self");
     };
   } catch {
     // 通知失败不影响页面

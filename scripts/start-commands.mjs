@@ -193,10 +193,15 @@ function resolvePackageManager(repoDir, readme, commands) {
 
 // ---------- 汇总 ----------
 
-function listRepos(cfg, root) {
-  const configured = Array.isArray(cfg?.raw?.repos)
-    ? cfg.raw.repos.filter((r) => typeof r === "string" && r.trim())
+function repositoriesOf(cfg) {
+  const list = cfg?.raw?.repositories;
+  return Array.isArray(list)
+    ? list.filter((r) => r && typeof r.name === "string" && r.name.trim())
     : [];
+}
+
+function listRepos(cfg, root) {
+  const configured = repositoriesOf(cfg).map((r) => r.name.trim());
   if (configured.length) return configured;
   return fs
     .readdirSync(root, { withFileTypes: true })
@@ -206,9 +211,14 @@ function listRepos(cfg, root) {
 }
 
 function productOf(cfg, repo) {
-  const map = Array.isArray(cfg?.raw?.projectMap) ? cfg.raw.projectMap : [];
+  const entry = repositoriesOf(cfg).find((r) => r.name.trim() === repo);
+  const projects = Array.isArray(entry?.projects) ? entry.projects : [];
   const names = [
-    ...new Set(map.filter((m) => m && m.repo === repo && typeof m.product === "string").map((m) => m.product)),
+    ...new Set(
+      projects
+        .filter((p) => p && typeof p.name === "string" && p.name.trim())
+        .map((p) => p.name.trim()),
+    ),
   ];
   return names.join(" / ");
 }

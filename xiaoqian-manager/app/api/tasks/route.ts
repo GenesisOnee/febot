@@ -1,8 +1,46 @@
 import { NextResponse } from "next/server";
-import { readTasks } from "@/lib/server/store";
+import { z } from "zod";
+import { createTask, readTasks } from "@/lib/server/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const CreateBody = z.object({
+  title: z.string().trim().min(1, "标题不能为空"),
+  module: z.string().trim().min(1, "模块不能为空"),
+  assignee: z.string().optional(),
+  customerName: z.string().optional(),
+  demandLevel: z.string().optional(),
+  description: z.string().optional(),
+  plannedDescription: z.string().optional(),
+  assignDescription: z.string().optional(),
+  createdName: z.string().optional(),
+});
+
+export async function POST(req: Request) {
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
+  }
+  const parsed = CreateBody.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "请求体校验失败" },
+      { status: 400 },
+    );
+  }
+  try {
+    const task = await createTask(parsed.data);
+    return NextResponse.json({ task }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "新建任务失败" },
+      { status: 500 },
+    );
+  }
+}
 
 export async function GET(req: Request) {
   try {

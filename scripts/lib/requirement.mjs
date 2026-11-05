@@ -1,7 +1,7 @@
 /**
  * 需求 / 仓库 / 分支解析。
  *
- * 从 feed.mjs / recon.mjs 抽出，避免两套 tasks.md 与 projectMap 语义漂移。
+ * 从 feed.mjs / recon.mjs 抽出，避免两套 tasks.md 与 repositories[] 语义漂移。
  * 纯函数优先；调用方（feed / recon / locate / advance）按自己的退出码契约
  * 把 ScriptError 转换出去。
  */
@@ -92,52 +92,66 @@ export function parseTasksRow(alias) {
   };
 }
 
-/** 分支解析：projectMap[].branch > branches.byRepo[repo] > branches.default */
-export function resolveBranch(cfg, entry, repo) {
-  if (entry && typeof entry.branch === "string" && entry.branch.trim()) {
-    return { branch: entry.branch.trim(), source: "projectMap" };
+/** 仓库注册表（新 schema）：repositories[] */
+export function repositoryEntries(cfg) {
+  const list = cfg?.raw?.repositories;
+  return Array.isArray(list) ? list.filter((r) => r && typeof r.name === "string" && r.name.trim()) : [];
+}
+
+/**
+ * 分支解析：repositories[repo].devBranch > defaults.devBranch。
+ * 与 App 端 deriveGitOptions 同语义。
+ */
+export function resolveBranch(cfg, _entry, repo) {
+  const entry = repositoryEntries(cfg).find((r) => r.name.trim() === repo);
+  if (entry && typeof entry.devBranch === "string" && entry.devBranch.trim()) {
+    return { branch: entry.devBranch.trim(), source: "repositories.devBranch" };
   }
-  const branches = cfg?.raw?.branches;
-  if (
-    branches &&
-    typeof branches === "object" &&
-    !Array.isArray(branches) &&
-    branches.byRepo &&
-    typeof branches.byRepo[repo] === "string" &&
-    branches.byRepo[repo].trim()
-  ) {
-    return { branch: branches.byRepo[repo].trim(), source: "branches.byRepo" };
-  }
-  if (
-    branches &&
-    typeof branches === "object" &&
-    !Array.isArray(branches) &&
-    typeof branches.default === "string" &&
-    branches.default.trim()
-  ) {
-    return { branch: branches.default.trim(), source: "branches.default" };
+  const dev = cfg?.raw?.defaults?.devBranch;
+  if (typeof dev === "string" && dev.trim()) {
+    return { branch: dev.trim(), source: "defaults.devBranch" };
   }
   throw new ScriptError(
     6,
-    `无法确定仓库 ${repo} 的基准分支：请配置 projectMap[].branch、branches.byRepo 或 branches.default`,
+    `无法确定仓库 ${repo} 的基准分支：请配置 repositories[].devBranch 或 defaults.devBranch`,
     { repo },
   );
 }
 
+/** 把 repositories[].projects 摊平成 { product, keywords, repo } 列表 */
+export function deriveProjectMap(cfg) {
+  const out = [];
+  for (const repo of repositoryEntries(cfg)) {
+    const projects = Array.isArray(repo.projects) ? repo.projects : [];
+    for (const p of projects) {
+      if (!p || typeof p.name !== "string" || !p.name.trim()) continue;
+      out.push({
+        product: p.name.trim(),
+        keywords: Array.isArray(p.keywords) ? p.keywords : [],
+        repo: repo.name.trim(),
+      });
+    }
+  }
+  return out;
+}
+
 /**
- * projectMap 定仓：产品/模块精确匹配 + 标题 keywords + 无关键词兜底。
+ * repositories[] 定仓：产品/模块精确匹配 + 标题 keywords + 无关键词兜底。
  * 返回 { repo, repoDir, branch, branchSource }；未命中抛 2，配置歧义抛 6。
  */
 export function resolveRepo(cfg, module, title) {
-  const projectMap = cfg?.raw?.projectMap;
-  if (!Array.isArray(projectMap)) {
-    throw new ScriptError(6, "febot.config.json 缺少 projectMap 数组（请参考 example/febot.config.json）");
+  const projectMap = deriveProjectMap(cfg);
+  if (projectMap.length === 0) {
+    throw new ScriptError(
+      6,
+      "febot.config.json 的 repositories[] 里没有任何 projects（请参考 example/febot.config.json）",
+    );
   }
 
   const candidates = projectMap.filter((e) => e && e.product === module);
   if (candidates.length === 0) {
     const known = [...new Set(projectMap.map((e) => e?.product).filter(Boolean))];
-    throw new ScriptError(2, `projectMap 未命中：产品/模块 "${module}" 没有映射`, {
+    throw new ScriptError(2, `repositories[].projects 未命中：产品/模块 "${module}" 没有映射`, {
       module,
       knownProducts: known,
     });
@@ -154,26 +168,30 @@ export function resolveRepo(cfg, module, title) {
   if (!entry) {
     const fallbacks = candidates.filter((e) => !Array.isArray(e.keywords) || e.keywords.length === 0);
     if (fallbacks.length === 0) {
-      throw new ScriptError(2, `projectMap 命中 "${module}" 但没有无关键词的兜底条目`, {
+      throw new ScriptError(2, `repositories[].projects 命中 "${module}" 但没有无关键词的兜底条目`, {
         module,
         candidates: candidates.map((e) => ({ keywords: e.keywords ?? [], repo: e.repo })),
       });
     }
     if (fallbacks.length > 1) {
-      throw new ScriptError(6, `projectMap 配置歧义："${module}" 有 ${fallbacks.length} 条无关键词兜底条目`, {
-        module,
-        repos: fallbacks.map((e) => e.repo),
-      });
+      throw new ScriptError(
+        6,
+        `repositories[].projects 配置歧义："${module}" 有 ${fallbacks.length} 条无关键词兜底条目`,
+        {
+          module,
+          repos: fallbacks.map((e) => e.repo),
+        },
+      );
     }
     entry = fallbacks[0];
   }
 
   const repo = typeof entry.repo === "string" ? entry.repo.trim() : "";
-  if (!repo) throw new ScriptError(6, `projectMap 中 "${module}" 的条目缺少 repo`);
+  if (!repo) throw new ScriptError(6, `repositories[].projects 中 "${module}" 的条目缺少 repo`);
 
-  const repos = Array.isArray(cfg?.raw?.repos) ? cfg.raw.repos : [];
+  const repos = repositoryEntries(cfg).map((r) => r.name.trim());
   if (!repos.includes(repo)) {
-    throw new ScriptError(6, `仓库 "${repo}" 不在 febot.config.json 的 repos 中`, { repo, repos });
+    throw new ScriptError(6, `仓库 "${repo}" 不在 febot.config.json 的 repositories[] 中`, { repo, repos });
   }
 
   let reposDir;

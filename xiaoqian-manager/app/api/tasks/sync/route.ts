@@ -1,80 +1,45 @@
 import { NextResponse } from "next/server";
-import type { Task } from "@/lib/domain/schema";
-import { mergeTasks } from "@/lib/server/store";
-import {
-  fetchDemandTasks,
-  fetchDetail,
-  fetchList,
-  fetchRecord,
-  TwLoginError,
-} from "@/lib/server/teamwork/client";
-import { hasCredentials } from "@/lib/server/teamwork/credentials";
-import { rowToTask } from "@/lib/server/teamwork/mapper";
-import { readTeamworkConfig } from "@/lib/server/config/root";
+import { runSync } from "@/lib/server/tasks/sync-service";
+import { TwLoginError } from "@/lib/server/teamwork/client";
+import { MANUAL_SOURCE_ID } from "@/lib/server/task-sources/registry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+interface SyncBody {
+  source?: string;
+  sourceId?: string;
+  params?: Record<string, unknown>;
+  /** 兼容旧前端：未传 source 时按协作平台处理 */
+  user?: string;
+  statuses?: string[];
+  module?: string;
+}
+
 export async function POST(req: Request) {
+  let body: SyncBody = {};
   try {
-    if (!hasCredentials()) {
-      return NextResponse.json(
-        { error: "未配置协作平台账号：请在 febot.config.json 的 teamwork.loginName / teamwork.password 填写" },
-        { status: 400 }
-      );
-    }
-    let body: { user?: string; statuses?: string[]; module?: string } = {};
-    try {
-      body = await req.json();
-    } catch {
-      // 空 body 走默认筛选
-    }
-    const statuses = body.statuses?.length ? body.statuses : ["1", "2"];
-    const user = (body.user || "").trim() || readTeamworkConfig().username;
-    if (!user) {
-      return NextResponse.json(
-        { error: "未指定执行人：请在 febot.config.json 的 teamwork.username 配置默认值，或在同步弹窗里填写" },
-        { status: 400 }
-      );
-    }
-    const moduleName = body.module ?? "";
+    body = (await req.json()) as SyncBody;
+  } catch {
+    // 空 body：走协作平台默认筛选
+  }
 
-    const rows = await fetchList({ statuses, user, module: moduleName, pageSize: 50 });
+  const sourceId = (body.source ?? body.sourceId ?? "teamwork").trim();
+  if (!sourceId || sourceId === MANUAL_SOURCE_ID) {
+    return NextResponse.json({ error: "请选择要同步的任务来源" }, { status: 400 });
+  }
 
-    const tasks: Task[] = [];
-    let failed = 0;
-    const errors: string[] = [];
-    // 平台侧确认仍存在、但拉详情失败的 id，合并时跳过删除
-    const failedIds: string[] = [];
-    for (const row of rows) {
-      const id = String(row.id ?? "").trim();
-      try {
-        if (!id) throw new Error("该行没有 id 字段");
-        const demandId = String(row.demand_id ?? "");
-        const [detail, traj, demandTasks] = await Promise.all([
-          fetchDetail(id),
-          fetchRecord(demandId),
-          fetchDemandTasks(demandId),
-        ]);
-        tasks.push(rowToTask(row, detail, traj, demandTasks));
-      } catch (e) {
-        failed++;
-        errors.push(`${id}: ${e instanceof Error ? e.message : "unknown"}`);
-        if (id) failedIds.push(id);
-      }
-    }
+  const params: Record<string, unknown> = { ...(body.params ?? {}) };
+  if (body.user !== undefined) params.user = body.user;
+  if (body.statuses !== undefined) params.statuses = body.statuses;
+  if (body.module !== undefined) params.module = body.module;
 
-    const merged = await mergeTasks(tasks, {
-      scope: { user, statuses, module: moduleName },
-      keepIds: failedIds,
-    });
+  try {
+    const result = await runSync({ sourceId, params });
     return NextResponse.json({
-      synced: tasks.length,
-      created: merged.created,
-      updated: merged.updated,
-      removed: merged.removed,
-      failed,
-      errors,
+      ...result,
+      synced: result.created + result.updated + result.unchanged,
+      errors: [],
     });
   } catch (e) {
     if (e instanceof TwLoginError) {

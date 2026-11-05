@@ -2,7 +2,7 @@
 /**
  * resolve-repo - 只读定仓（xiaoqian-manager 启动前置门禁）
  *
- * 与 feed / recon / advance 共用同一套 projectMap 与分支解析（lib/requirement.mjs），
+ * 与 feed / recon / advance 共用同一套 repositories[] 与分支解析（lib/requirement.mjs），
  * 不重复实现、不会漂移。只读：不写 state、不写 tasks.md、不跑 git。
  *
  * 用法：
@@ -14,9 +14,9 @@
  *
  * stdout（一行 JSON）：
  *   {"ok":true,"alias":...,"repo":"demo-product-a-ui","repoDir":"D:\\febot\\gitlab\\demo-product-a-ui",
- *    "branch":"dev","branchSource":"branches.default"}
+ *    "branch":"dev","branchSource":"defaults.devBranch"}
  *
- * 退出码：0 成功；2 projectMap 未命中；5 输入；6 配置 / 仓库解析错误。
+ * 退出码：0 成功；2 repositories[].projects 未命中；5 输入；6 配置 / 仓库解析错误。
  */
 import fs from "node:fs";
 import path from "node:path";

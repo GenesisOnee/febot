@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,22 +13,16 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { PipelineRun, RunStatus, TimelineEvent } from "@/lib/domain/run";
-import type { ClientMessage, RunnerInfo, ServerMessage } from "@/lib/runner/protocol";
+import type { PipelineRun } from "@/lib/domain/run";
 import { cn } from "@/lib/utils";
 import DiffPanel from "./DiffPanel";
 import Timeline from "./Timeline";
-import TerminalPane, { type TerminalApi } from "./TerminalPane";
+import TerminalPane from "./TerminalPane";
 import { RunStatusBadge } from "./run-status";
+import { isLiveStatus, useRunSession } from "./useRunSession";
 
-// 会话页：左终端、右 diff。所有输出与状态都来自 runner 的 WS 推送，
-// 断线后按 lastSeq 重连补发；时间线首屏走 GET /events（WS 不补发历史时间线）。
-
-const LIVE_STATUSES: RunStatus[] = ["starting", "running", "needs_input", "settling"];
-
-function isLive(status: RunStatus): boolean {
-  return LIVE_STATUSES.includes(status);
-}
+// 整页会话（仅保留代码/排查用）：时间线 + 终端 + diff。
+// 工作台入口已改为右栏 RunPanel，两者共用 useRunSession。
 
 export default function SessionView({
   initialRun,
@@ -43,269 +37,16 @@ export default function SessionView({
 }) {
   const router = useRouter();
   const runId = initialRun.id;
-  const [run, setRun] = useState<PipelineRun>(initialRun);
-  const [events, setEvents] = useState<TimelineEvent[]>([]);
-  const [connected, setConnected] = useState(false);
-  const [online, setOnline] = useState(true);
+  const session = useRunSession(initialRun);
+  const { run, events, connected, online, notice, setNotice } = session;
+
   const [selected, setSelected] = useState<string[]>([]);
-  const [refreshToken, setRefreshToken] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [redoOpen, setRedoOpen] = useState(false);
   const [redoText, setRedoText] = useState("");
   const [busy, setBusy] = useState<"" | "accept" | "reject" | "redo" | "cancel">("");
-  const [notice, setNotice] = useState("");
   const lastRejected = useRef<string[]>([]);
 
-  const termApi = useRef<TerminalApi | null>(null);
-  const pendingOutput = useRef("");
-  // xterm 还没初始化时收到的屏幕快照：初始化后整屏写入，不能和 pendingOutput 混在一起
-  const pendingScreen = useRef<string | null>(null);
-  const lastSeq = useRef<number | undefined>(undefined);
-  const wsRef = useRef<WebSocket | null>(null);
-  const lastStatus = useRef<RunStatus>(initialRun.status);
-  // 终端真实尺寸：WS 未连上时也先记住，onopen 后立即补发，避免 PTY 停在启动时的默认尺寸
-  const lastSize = useRef<{ cols: number; rows: number } | null>(null);
-  const sentSize = useRef<{ cols: number; rows: number } | null>(null);
-
-  // ---------- 首屏时间线 ----------
-  useEffect(() => {
-    let stopped = false;
-    fetch(`/api/runs/${encodeURIComponent(runId)}/events`, { cache: "no-store" })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const json = (await res.json()) as { events?: TimelineEvent[] };
-        if (!stopped && Array.isArray(json.events)) setEvents(json.events);
-      })
-      .catch(() => undefined);
-    return () => {
-      stopped = true;
-    };
-  }, [runId]);
-
-  // ---------- WS：连接 / 重连 / 补发 ----------
-  useEffect(() => {
-    let closed = false;
-    let ws: WebSocket | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let pingTimer: ReturnType<typeof setInterval> | null = null;
-    let attempt = 0;
-
-    const send = (msg: ClientMessage) => {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
-    };
-
-    const applyMessage = (msg: ServerMessage) => {
-      if ("seq" in msg && typeof msg.seq === "number") {
-        lastSeq.current = Math.max(lastSeq.current ?? 0, msg.seq);
-      }
-      switch (msg.type) {
-        case "snapshot": {
-          setRun(msg.run);
-          if (typeof msg.screen === "string") {
-            // 服务端影子终端的屏幕快照：整屏替换，不能再叠加原始输出回放
-            pendingOutput.current = "";
-            const api = termApi.current;
-            if (api) {
-              api.reset();
-              api.write(msg.screen);
-            } else {
-              pendingScreen.current = msg.screen;
-            }
-            if (msg.truncated) {
-              setNotice("终端输出已超出缓冲上限，只恢复了最近部分内容。");
-            }
-            return;
-          }
-          if (msg.truncated) {
-            // 缓冲已滚出头部：先清屏再回放，否则相对光标定位会叠在旧内容上
-            termApi.current?.reset();
-            setNotice("终端输出已超出缓冲上限，只恢复了最近部分内容。");
-          }
-          return;
-        }
-        case "output": {
-          const api = termApi.current;
-          if (api) api.write(msg.data);
-          else pendingOutput.current += msg.data;
-          return;
-        }
-        case "status": {
-          setRun((prev) => ({
-            ...prev,
-            status: msg.status,
-            pid: msg.pid ?? prev.pid,
-            changedFiles: msg.changedFiles ?? prev.changedFiles,
-          }));
-          return;
-        }
-        case "exit": {
-          setRun((prev) => ({ ...prev, exitCode: msg.exitCode }));
-          return;
-        }
-        case "git": {
-          setRun((prev) => ({ ...prev, changedFiles: msg.changed }));
-          setRefreshToken((n) => n + 1);
-          return;
-        }
-        case "timeline": {
-          const e = msg.event;
-          setEvents((prev) => {
-            const key = eventKey(e);
-            if (prev.slice(-50).some((x) => eventKey(x) === key)) return prev;
-            return [...prev, e];
-          });
-          if (e.type === "wait") {
-            setRun((prev) => ({
-              ...prev,
-              status: e.status === "waiting" ? "needs_input" : "running",
-            }));
-          }
-          return;
-        }
-        case "error": {
-          setNotice(msg.message);
-          return;
-        }
-        default:
-          return;
-      }
-    };
-
-    const connect = async () => {
-      try {
-        const res = await fetch("/api/runner/info", { cache: "no-store" });
-        const info = (await res.json()) as RunnerInfo & { online?: boolean };
-        if (closed) return;
-        if (!info.online || !info.wsUrl || !info.token) {
-          setOnline(false);
-          setConnected(false);
-          retryTimer = setTimeout(connect, 3000);
-          return;
-        }
-        setOnline(true);
-        ws = new WebSocket(`${info.wsUrl}?token=${encodeURIComponent(info.token)}`);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (closed) return;
-          attempt = 0;
-          setConnected(true);
-          // 先发尺寸再 attach：服务端用影子终端序列化快照，必须按客户端尺寸出图；
-          // 这条同时补上 WS 建立前丢掉的首帧 resize。
-          const size = lastSize.current;
-          if (size) {
-            send({ type: "resize", runId, cols: size.cols, rows: size.rows });
-            sentSize.current = size;
-          }
-          send({
-            type: "attach",
-            runId,
-            lastSeq: lastSeq.current,
-          });
-          pingTimer = setInterval(() => send({ type: "ping" }), 25_000);
-        };
-        ws.onmessage = (ev: MessageEvent<string>) => {
-          let msg: ServerMessage;
-          try {
-            msg = JSON.parse(ev.data) as ServerMessage;
-          } catch {
-            return;
-          }
-          if (msg.type === "pong") return;
-          applyMessage(msg);
-        };
-        ws.onclose = () => {
-          setConnected(false);
-          if (pingTimer) clearInterval(pingTimer);
-          pingTimer = null;
-          if (closed) return;
-          const delay = Math.min(10_000, 500 * 2 ** attempt);
-          attempt += 1;
-          retryTimer = setTimeout(connect, delay);
-        };
-        ws.onerror = () => {
-          try {
-            ws?.close();
-          } catch {
-            // ignore
-          }
-        };
-      } catch {
-        if (closed) return;
-        setOnline(false);
-        setConnected(false);
-        retryTimer = setTimeout(connect, 3000);
-      }
-    };
-
-    void connect();
-
-    return () => {
-      closed = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      if (pingTimer) clearInterval(pingTimer);
-      try {
-        ws?.close();
-      } catch {
-        // ignore
-      }
-      wsRef.current = null;
-    };
-  }, [runId]);
-
-  // 进入终态后刷新一次服务端数据（任务轨迹由 settle 回调写回）
-  useEffect(() => {
-    const prev = lastStatus.current;
-    lastStatus.current = run.status;
-    if (prev !== run.status && !isLive(run.status) && isLive(prev)) {
-      router.refresh();
-    }
-  }, [run.status, router]);
-
-  const sendInput = useCallback((data: string) => {
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "input", runId, data } satisfies ClientMessage));
-      return;
-    }
-    // WS 断开时退回 HTTP，输入不丢
-    void fetch(`/api/runs/${encodeURIComponent(runId)}/input`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ data, submit: false }),
-    }).catch(() => undefined);
-  }, [runId]);
-
-  const sendResize = useCallback((cols: number, rows: number) => {
-    lastSize.current = { cols, rows };
-    // 尺寸没变不重复发：无谓的 SIGWINCH 会让 TUI 整屏重绘
-    const sent = sentSize.current;
-    if (sent && sent.cols === cols && sent.rows === rows) return;
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "resize", runId, cols, rows } satisfies ClientMessage));
-      sentSize.current = { cols, rows };
-    }
-  }, [runId]);
-
-  const handleReady = useCallback((api: TerminalApi) => {
-    termApi.current = api;
-    const screen = pendingScreen.current;
-    if (screen !== null) {
-      // 屏幕快照是整屏状态，先清屏再写，且不使用之前缓存的增量输出
-      pendingScreen.current = null;
-      pendingOutput.current = "";
-      api.reset();
-      api.write(screen);
-      return;
-    }
-    if (pendingOutput.current) {
-      api.write(pendingOutput.current);
-      pendingOutput.current = "";
-    }
-  }, []);
-
-  // ---------- 操作 ----------
   const act = async (kind: "accept" | "reject" | "redo" | "cancel") => {
     setNotice("");
     if (kind === "cancel" && !window.confirm("终止后本次会话的 PTY 会被杀掉，确定？")) return;
@@ -345,16 +86,14 @@ export default function SessionView({
         lastRejected.current = selected;
         setNotice(`已驳回 ${json.results?.length ?? selected.length} 个文件`);
         setSelected([]);
-        setRefreshToken((n) => n + 1);
+        session.bumpRefresh();
       }
       if (kind === "redo") {
         setRedoText("");
         setRedoOpen(false);
         setNotice("已发送给会话");
       }
-      if (kind === "cancel") {
-        setNotice("已终止");
-      }
+      if (kind === "cancel") setNotice("已终止");
       router.refresh();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "操作失败");
@@ -363,13 +102,11 @@ export default function SessionView({
     }
   };
 
-  const live = isLive(run.status);
-  // 已收口但进程还在（claude 常驻交互）时也允许终止，否则这个任务无法重跑
+  const live = isLiveStatus(run.status);
   const canCancel = live || run.pid !== null;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] min-h-0 flex-col gap-2 overflow-hidden p-3">
-      {/* 头部 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button asChild variant="ghost" size="sm">
           <Link href="/">
@@ -386,7 +123,7 @@ export default function SessionView({
           <span
             className={cn(
               "inline-flex items-center gap-1 text-xs",
-              connected ? "text-muted-foreground" : "text-amber-600"
+              connected ? "text-muted-foreground" : "text-amber-600",
             )}
             title={connected ? "WS 已连接" : "WS 断开，正在重连"}
           >
@@ -421,29 +158,30 @@ export default function SessionView({
         </div>
       )}
 
-      {/* 主体：终端 + diff */}
       <div className="grid min-h-0 flex-1 gap-2 grid-rows-[minmax(0,1.5fr)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1">
         <div className="min-h-0 overflow-hidden">
-          <TerminalPane onData={sendInput} onResize={sendResize} onReady={handleReady} />
+          <TerminalPane
+            onData={session.sendInput}
+            onResize={session.sendResize}
+            onReady={session.handleReady}
+          />
         </div>
         <DiffPanel
           runId={runId}
-          refreshToken={refreshToken}
+          refreshToken={session.refreshToken}
           selected={selected}
           onSelectedChange={setSelected}
           className="min-h-0"
         />
       </div>
 
-      {/* 操作条 */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/runs/${encodeURIComponent(runId)}/review`}>
+          <Link href={`/runs/${encodeURIComponent(runId)}/review`} target="_blank" rel="noopener noreferrer">
             <Maximize2 className="h-3.5 w-3.5" />
             全屏审阅
           </Link>
         </Button>
-
         <Button
           size="sm"
           variant="outline"
@@ -454,7 +192,6 @@ export default function SessionView({
           {busy === "accept" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
           接受
         </Button>
-
         <Button
           size="sm"
           variant="destructive"
@@ -464,7 +201,6 @@ export default function SessionView({
         >
           驳回{selected.length > 0 ? ` ${selected.length}` : ""}
         </Button>
-
         <Button
           size="sm"
           variant="secondary"
@@ -472,10 +208,9 @@ export default function SessionView({
           onClick={() => {
             const next = !redoOpen;
             setRedoOpen(next);
-            // 刚驳回过：把路径带进提示，省得用户再抄一遍
             if (next && !redoText && lastRejected.current.length > 0) {
               setRedoText(
-                `以下文件已驳回：${lastRejected.current.join("、")}。请只重做这些文件，不要动其他改动。`
+                `以下文件已驳回：${lastRejected.current.join("、")}。请只重做这些文件，不要动其他改动。`,
               );
             }
           }}
@@ -483,7 +218,6 @@ export default function SessionView({
           <RotateCcw className="h-3.5 w-3.5" />
           要求重做
         </Button>
-
         <Button
           size="sm"
           variant="ghost"
@@ -500,7 +234,7 @@ export default function SessionView({
         <div className="rounded-lg border bg-card p-2">
           <textarea
             className="h-20 w-full resize-none rounded-md border bg-background p-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="输入给会话的指令，回车提交后会直接写入终端（例如：先只改 README，不要动业务代码）"
+            placeholder="输入给会话的指令，Ctrl/⌘ + Enter 发送"
             value={redoText}
             onChange={(e) => setRedoText(e.target.value)}
             onKeyDown={(e) => {
@@ -515,11 +249,7 @@ export default function SessionView({
             <Button variant="ghost" size="sm" onClick={() => setRedoOpen(false)}>
               取消
             </Button>
-            <Button
-              size="sm"
-              disabled={busy !== "" || redoText.trim() === ""}
-              onClick={() => void act("redo")}
-            >
+            <Button size="sm" disabled={busy !== "" || redoText.trim() === ""} onClick={() => void act("redo")}>
               {busy === "redo" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               发送
             </Button>
@@ -528,8 +258,4 @@ export default function SessionView({
       )}
     </div>
   );
-}
-
-function eventKey(e: TimelineEvent): string {
-  return [e.ts, e.type, e.stage ?? "", e.name ?? "", e.status ?? "", e.path ?? "", e.message ?? ""].join("|");
 }

@@ -60,11 +60,8 @@ export function renderPlanFile(task: Task): string {
     `查询ID: ${task.demandId}`,
     `别名: ${alias}`,
     `产品/模块: ${task.module}`,
-    `版本: ${task.version}`,
     `状态: ${task.twStatus}`,
     `难度: ${task.demandLevel}`,
-    `任务类型: ${task.taskType}`,
-    `最大工时: ${task.maxHour ?? ""}`,
     `执行人: ${task.assignee}`,
     `创建人: ${task.createdName}`,
   ]
