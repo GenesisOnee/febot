@@ -8,12 +8,11 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[中文](README.md) · [English](README.en.md) · [快速开始](#快速开始) · [架构](#架构) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+[中文](README.md) · [English](README.en.md) · [快速开始](#快速开始) · [架构](#架构) · [路线图](ROADMAP.md) · [更新日志](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)
 
 </div>
 
-<!-- 60 秒 GIF 录制完成后放到 docs/assets/demo-60s.gif，并取消下一行注释 -->
-<!-- <p align="center"><img src="docs/assets/demo-60s.gif" alt="60 秒演示：同步需求 → 拍板计划 → 三个 Agent 跑 → diff 审阅" width="880"></p> -->
+<p align="center"><img src="docs/assets/demo-60s.gif" alt="60 秒演示：需求排队 → 拍板计划 → 待审队列 → diff 审阅" width="740"></p>
 
 ## 三个关键点
 
@@ -22,6 +21,18 @@
 | **需求不再散**          | 十条需求十条消息，最后不知道谁在改哪个仓 | 需求队列 + 状态机 + `tasks.md`；跨仓并行、同仓串行，一眼看清每个需求的落点           |
 | **人只做决策**          | 边聊边改，改完才发现方向错了             | 人只卡门禁：计划、文件白名单、diff；每次拍板落进 `decisions.md`，留完整审计链        |
 | **Agent 团队分工**      | 一个 Agent 又写又审，等于自己批自己      | planner / coder / reviewer 分离：reviewer 只读 diff，有 blocker 必须回改（≤ 2 轮）   |
+
+## 界面
+
+截图来自 `yarn demo` 的零配置演示数据（`example/demo/`）。
+
+<p align="center">
+  <img src="docs/assets/ui-queue.png" alt="需求队列：状态、进度、待处理提醒" width="49%">
+  <img src="docs/assets/ui-plan.png" alt="计划拍板：人确认 AI 整理出的计划描述" width="49%">
+</p>
+<p align="center">
+  <img src="docs/assets/ui-review.png" alt="diff 审阅：按文件看改动，逐项接受或打回" width="100%">
+</p>
 
 ## 快速开始
 
@@ -45,6 +56,10 @@ yarn dev       # 起工作台，浏览器打开 http://localhost:3010
 - **AgentTeam**：`/pipeline` 剧本 + planner / coder / reviewer 三个 subagent（②③ 步）。**文件即接口**——交接靠 `state.json` / `plan.md` / `decisions.md` 落盘，不靠对话历史。
 - **事实层**：`code-indexer` 现算前端代码事实（路由 / 组件树 / API 域 / store / 权限 / 存储）；`swagger-mcp-server` 提供实时 API 文档。
 - **记忆层**：Hindsight 按 bank 隔离——流水线存研发经验，业务助手存业务知识，互不污染。
+
+**和「直接用 Claude Code」的流程差异**：差别不在模型，而在交付结构——谁卡门禁、上下文放在哪、谁审谁写。
+
+![直接用 Claude Code vs. febot 的流程差异](docs/assets/comparison.png)
 
 **能力边界（诚实版）**：跨仓并行、**同仓串行**（共用主仓工作区，为的是随时能起 dev server 验收）；Agent 永远不 push，远程写操作留给人；当前只支持 Vue3 仓库，runner 目前只有 Claude Code。设计权衡见下方第一部分，后续方向见 [ROADMAP.md](ROADMAP.md)。
 

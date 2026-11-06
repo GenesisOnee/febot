@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">直接用 Claude Code vs. febot 的流程差异</title>
+  <desc id="desc">左侧是单会话边聊边写、自审自改；右侧是需求队列、计划落盘、人工拍板、coder 与 reviewer 分离、人验收 diff。</desc>
+
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .panel { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1.5; }
+      .panel-accent { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1.5; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+      .box-accent { fill: #ffffff; stroke: #93c5fd; stroke-width: 1.5; }
+      .step-num { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 700; fill: #0369a1; }
+      .step-num-muted { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13px; font-weight: 700; fill: #94a3b8; }
+      .h1 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 26px; font-weight: 700; fill: #0f172a; }
+      .h1-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; fill: #64748b; }
+      .panel-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 19px; font-weight: 700; fill: #0f172a; }
+      .panel-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 12.5px; fill: #64748b; }
+      .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 15.5px; font-weight: 600; fill: #0f172a; }
+      .sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 12.5px; fill: #64748b; }
+      .chip-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13.5px; font-weight: 700; fill: #0f172a; }
+      .chip-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 11.5px; fill: #64748b; }
+      .foot { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13px; fill: #475569; }
+      .arrow { stroke: #94a3b8; stroke-width: 1.8; fill: none; }
+      .cross { fill: #fef2f2; stroke: #fca5a5; stroke-width: 1.2; }
+      .tick { fill: #ecfdf5; stroke: #6ee7b7; stroke-width: 1.2; }
+      .mark-bad { font-family: "Segoe UI", sans-serif; font-size: 15px; font-weight: 700; fill: #dc2626; }
+      .mark-good { font-family: "Segoe UI", sans-serif; font-size: 15px; font-weight: 700; fill: #059669; }
+    </style>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="820"/>
+
+  <text class="h1" x="40" y="52">直接用 Claude Code vs. febot：流程差异</text>
+  <text class="h1-sub" x="40" y="78">同一个模型，不同的交付结构——差别不在谁更会写代码，而在谁卡门禁、上下文放在哪。</text>
+
+  <!-- Left panel -->
+  <rect class="panel" x="40" y="104" width="540" height="536" rx="12"/>
+  <text class="panel-title" x="64" y="140">直接用 Claude Code</text>
+  <text class="panel-sub" x="64" y="160">一个 Agent · 一条对话 · 上下文在聊天记录里</text>
+
+  <!-- left steps -->
+  <rect class="box" x="64" y="180" width="492" height="72" rx="9"/>
+  <circle class="cross" cx="92" cy="216" r="13"/>
+  <text class="mark-bad" x="92" y="221" text-anchor="middle">×</text>
+  <text class="label" x="118" y="211">想到需求 → 打开一个会话</text>
+  <text class="sub" x="118" y="233">上下文从零开始，上个需求的结论带不过来</text>
+
+  <line class="arrow" x1="310" y1="252" x2="310" y2="266" marker-end="url(#arrowhead)"/>
+
+  <rect class="box" x="64" y="270" width="492" height="72" rx="9"/>
+  <circle class="cross" cx="92" cy="306" r="13"/>
+  <text class="mark-bad" x="92" y="311" text-anchor="middle">×</text>
+  <text class="label" x="118" y="301">边聊边写，方案和代码混在一轮</text>
+  <text class="sub" x="118" y="323">没先拍板，改完才发现方向不对</text>
+
+  <line class="arrow" x1="310" y1="342" x2="310" y2="356" marker-end="url(#arrowhead)"/>
+
+  <rect class="box" x="64" y="360" width="492" height="72" rx="9"/>
+  <circle class="cross" cx="92" cy="396" r="13"/>
+  <text class="mark-bad" x="92" y="401" text-anchor="middle">×</text>
+  <text class="label" x="118" y="391">同一个 Agent 自己检查</text>
+  <text class="sub" x="118" y="413">写的人和审的人是同一个，等于自己批自己</text>
+
+  <line class="arrow" x1="310" y1="432" x2="310" y2="446" marker-end="url(#arrowhead)"/>
+
+  <rect class="box" x="64" y="450" width="492" height="72" rx="9"/>
+  <circle class="cross" cx="92" cy="486" r="13"/>
+  <text class="mark-bad" x="92" y="491" text-anchor="middle">×</text>
+  <text class="label" x="118" y="481">改坏了 → 回滚或重开对话</text>
+  <text class="sub" x="118" y="503">为什么这么改、谁拍的板，只能翻聊天记录</text>
+
+  <line class="arrow" x1="310" y1="522" x2="310" y2="536" marker-end="url(#arrowhead)"/>
+
+  <rect class="box" x="64" y="540" width="492" height="72" rx="9"/>
+  <circle class="cross" cx="92" cy="576" r="13"/>
+  <text class="mark-bad" x="92" y="581" text-anchor="middle">×</text>
+  <text class="label" x="118" y="571">换下一个需求</text>
+  <text class="sub" x="118" y="593">上下文丢弃，踩过的坑下个人再踩一遍</text>
+
+  <!-- Right panel -->
+  <rect class="panel-accent" x="620" y="104" width="540" height="536" rx="12"/>
+  <text class="panel-title" x="644" y="140">febot</text>
+  <text class="panel-sub" x="644" y="160">需求队列 · 3 个 SubAgent · 人工门禁 · 文件即接口</text>
+
+  <rect class="box-accent" x="644" y="180" width="492" height="72" rx="9"/>
+  <circle class="tick" cx="672" cy="216" r="13"/>
+  <text class="mark-good" x="672" y="221" text-anchor="middle">✓</text>
+  <text class="label" x="698" y="211">需求进队列</text>
+  <text class="sub" x="698" y="233">tasks.md + 状态机；跨仓并行，同仓串行</text>
+
+  <line class="arrow" x1="890" y1="252" x2="890" y2="266" marker-end="url(#arrowhead)"/>
+
+  <rect class="box-accent" x="644" y="270" width="492" height="72" rx="9"/>
+  <circle class="tick" cx="672" cy="306" r="13"/>
+  <text class="mark-good" x="672" y="311" text-anchor="middle">✓</text>
+  <text class="label" x="698" y="301">planner 先出 plan.md</text>
+  <text class="sub" x="698" y="323">只读仓库、列文件白名单，不动一行代码</text>
+
+  <line class="arrow" x1="890" y1="342" x2="890" y2="356" marker-end="url(#arrowhead)"/>
+
+  <rect class="box-accent" x="644" y="360" width="492" height="72" rx="9"/>
+  <circle class="tick" cx="672" cy="396" r="13"/>
+  <text class="mark-good" x="672" y="401" text-anchor="middle">✓</text>
+  <text class="label" x="698" y="391">人拍板，写进 decisions.md</text>
+  <text class="sub" x="698" y="413">改方案要改文件；审计链可查，不靠记忆</text>
+
+  <line class="arrow" x1="890" y1="432" x2="890" y2="446" marker-end="url(#arrowhead)"/>
+
+  <rect class="box-accent" x="644" y="450" width="492" height="72" rx="9"/>
+  <circle class="tick" cx="672" cy="486" r="13"/>
+  <text class="mark-good" x="672" y="491" text-anchor="middle">✓</text>
+  <text class="label" x="698" y="481">coder 写，reviewer 只读 diff 审</text>
+  <text class="sub" x="698" y="503">写审分离；有 blocker 必须回改，最多 2 轮</text>
+
+  <line class="arrow" x1="890" y1="522" x2="890" y2="536" marker-end="url(#arrowhead)"/>
+
+  <rect class="box-accent" x="644" y="540" width="492" height="72" rx="9"/>
+  <circle class="tick" cx="672" cy="576" r="13"/>
+  <text class="mark-good" x="672" y="581" text-anchor="middle">✓</text>
+  <text class="label" x="698" y="571">人验收 diff → 提交 / 合并</text>
+  <text class="sub" x="698" y="593">Agent 永远不 push，远程写操作留给人</text>
+
+  <!-- Bottom comparison chips -->
+  <text class="foot" x="40" y="678">四个结构性差异</text>
+
+  <rect x="40" y="694" width="270" height="86" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text class="chip-title" x="60" y="722">上下文</text>
+  <text class="chip-sub" x="60" y="744">对话历史 → 文件即接口</text>
+  <text class="chip-sub" x="60" y="762">state.json / plan.md / decisions.md</text>
+
+  <rect x="326" y="694" width="270" height="86" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text class="chip-title" x="346" y="722">审查</text>
+  <text class="chip-sub" x="346" y="744">自审自改 → 写审分离</text>
+  <text class="chip-sub" x="346" y="762">reviewer 只读 diff，不看实现</text>
+
+  <rect x="612" y="694" width="270" height="86" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text class="chip-title" x="632" y="722">并行</text>
+  <text class="chip-sub" x="632" y="744">单会话串行 → 跨仓并行</text>
+  <text class="chip-sub" x="632" y="762">同仓串行，file-lock 仲裁冲突</text>
+
+  <rect x="898" y="694" width="262" height="86" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text class="chip-title" x="918" y="722">追溯</text>
+  <text class="chip-sub" x="918" y="744">聊天记录 → 审计链</text>
+  <text class="chip-sub" x="918" y="762">谁在什么时候改了什么，可复查</text>
+</svg>

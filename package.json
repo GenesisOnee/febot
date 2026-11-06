@@ -1,6 +1,6 @@
 {
   "name": "febot",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "febot：前端研发自动化工作区",
   "license": "MIT",
@@ -22,6 +22,8 @@
     "feed": "node scripts/feed.mjs",
     "assistant:probe": "node scripts/assistant-probe.mjs",
     "assistant:memo": "node scripts/assistant-memo.mjs",
-    "assistant:map": "node scripts/assistant-map.mjs"
+    "assistant:map": "node scripts/assistant-map.mjs",
+    "traffic": "node scripts/traffic.mjs",
+    "labels": "node scripts/labels.mjs"
   }
 }

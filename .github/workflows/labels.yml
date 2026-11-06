@@ -1,0 +1,35 @@
+name: Sync labels
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - ".github/labels.yml"
+      - "scripts/labels.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: labels-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Apply .github/labels.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+
+      # 脚本零依赖，只需要 GITHUB_TOKEN；actions 自带的 token 有 issues: write。
+      - name: Sync labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/labels.mjs

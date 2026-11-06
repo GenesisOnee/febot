@@ -8,12 +8,11 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[English](README.en.md) · [中文](README.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+[English](README.en.md) · [中文](README.md) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
-<!-- The 60s GIF will live at docs/assets/demo-60s.gif. Uncomment once recorded. -->
-<!-- <p align="center"><img src="docs/assets/demo-60s.gif" alt="60s demo: sync a requirement, approve the plan, agents code, review the diff" width="880"></p> -->
+<p align="center"><img src="docs/assets/demo-60s.gif" alt="60s demo: queue a requirement, approve the plan, review the diff" width="740"></p>
 
 > **Status:** early, intentionally narrow. Chinese-first docs (this file is the English entry point). Windows-oriented. Requires [Claude Code](https://claude.com/claude-code) as the runner. Vue 3 repos only.
 
@@ -26,6 +25,18 @@ Most AI coding tools stop at “write this function”. febot covers the whole d
 | **Requirements don't scatter** | Ten requirements, ten chat threads, nobody knows which repo is being touched | A queue with an explicit state machine and a `tasks.md` ledger; cross-repo parallel, same-repo serial |
 | **Humans decide, not type**    | You iterate in chat and only notice the wrong direction at the end | Gates at plan / file allow-list / diff; every decision is written to `decisions.md`        |
 | **Separated agent roles**      | One agent writes and reviews its own work                    | planner / coder / reviewer are separate; the reviewer only sees the diff, blockers loop back (max 2 rounds) |
+
+## Screenshots
+
+Captured from the zero-config `yarn demo` fixtures (`example/demo/`).
+
+<p align="center">
+  <img src="docs/assets/ui-queue.png" alt="Requirement queue: status, progress, pending-input reminders" width="49%">
+  <img src="docs/assets/ui-plan.png" alt="Plan approval: a human confirms the plan drafted by the agent" width="49%">
+</p>
+<p align="center">
+  <img src="docs/assets/ui-review.png" alt="Diff review: per-file changes, accept or reject each hunk" width="100%">
+</p>
 
 ## Quick start
 
@@ -60,6 +71,10 @@ terminal with `yarn runner`.
 - **AgentTeam** (`/pipeline` playbook + subagents): orchestrator, planner, coder, reviewer. **The interface is files, not chat history** — handoffs are persisted in `state.json`, `plan.md`, and `decisions.md`.
 - **Facts**: `code-indexer` computes frontend code facts on demand (routes, component trees, API domains, stores, permissions, storage); `swagger-mcp-server` feeds live API docs to agents.
 - **Memory** (optional): [Hindsight](https://github.com/vectorize-io/hindsight) in Docker (`docker compose up -d` after `yarn setup`), one instance with isolated banks — pipeline expertise vs. product knowledge never mix.
+
+**How the flow differs from using Claude Code directly:** the model is the same; the delivery structure is not — who holds the gate, where context lives, and who writes vs. reviews.
+
+![Claude Code used directly vs. febot: flow differences](docs/assets/comparison.png)
 
 ## The 5-step pipeline
 

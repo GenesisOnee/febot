@@ -1,0 +1,36 @@
+# 仓库标签的唯一来源。
+# 应用：GITHUB_TOKEN=xxx yarn labels
+# 手动：按下面的 name / color / description 在 Settings → Labels 里建。
+# 颜色不带 #，与 GitHub API 一致。
+
+- name: usage
+  color: "0e8a16"
+  description: 使用问题、跑通反馈（安装、配置、任务来源）
+
+- name: bug
+  color: "d73a4a"
+  description: 可复现的错误
+
+- name: feature
+  color: "a2eeef"
+  description: 功能建议
+
+- name: good first issue
+  color: "7057ff"
+  description: 适合第一次贡献，含背景、验收标准与涉及文件
+
+- name: help wanted
+  color: "008672"
+  description: 欢迎认领
+
+- name: question
+  color: "d876e3"
+  description: 讨论型问题
+
+- name: docs
+  color: "0075ca"
+  description: 文档（README / 教程 / 配置说明）
+
+- name: ci
+  color: "fbca04"
+  description: CI / 工具链 / 构建
