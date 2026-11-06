@@ -170,7 +170,7 @@ export default function ReviewView({
         <span className="truncate text-xs text-muted-foreground">{taskModule}</span>
         <RunStatusBadge status={run.status} />
         {accepted && (
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+          <span className="inline-flex items-center gap-1 text-xs text-success">
             <Check className="h-3 w-3" /> 已接受
           </span>
         )}

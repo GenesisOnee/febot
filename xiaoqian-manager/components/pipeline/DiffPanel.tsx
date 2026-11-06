@@ -21,10 +21,10 @@ const STATUS_LABEL: Record<DiffFile["status"], string> = {
 };
 
 const STATUS_CLASS: Record<DiffFile["status"], string> = {
-  added: "text-emerald-600 border-emerald-600/40",
-  modified: "text-amber-600 border-amber-600/40",
+  added: "text-success border-success/40",
+  modified: "text-warning border-warning/40",
   deleted: "text-destructive border-destructive/40",
-  renamed: "text-blue-600 border-blue-600/40",
+  renamed: "text-info border-info/40",
   untracked: "text-muted-foreground border-border",
 };
 
@@ -163,7 +163,7 @@ export default function DiffPanel({
           {files.length > 0 && (
             <>
               {" · "}
-              <span className="text-emerald-600">+{totals.additions}</span>{" "}
+              <span className="text-success">+{totals.additions}</span>{" "}
               <span className="text-destructive">-{totals.deletions}</span>
             </>
           )}
@@ -223,7 +223,7 @@ export default function DiffPanel({
                 {f.path}
               </span>
               <span className="shrink-0 tabular-nums text-muted-foreground">
-                <span className="text-emerald-600">+{f.additions}</span>
+                <span className="text-success">+{f.additions}</span>
                 <span className="text-destructive">-{f.deletions}</span>
               </span>
             </div>

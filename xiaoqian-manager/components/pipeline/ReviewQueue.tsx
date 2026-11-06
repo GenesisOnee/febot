@@ -83,7 +83,7 @@ export default function ReviewQueue({ tasks }: { tasks: TaskBrief[] }) {
       </div>
 
       {!online && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+        <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           <WifiOff className="h-3.5 w-3.5" />
           runner 未启动（原因：待审数据由 runner 提供）。下一步：在项目根目录执行{" "}
           <code className="font-mono">yarn runner</code>。

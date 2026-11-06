@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -18,6 +19,14 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="min-h-screen antialiased">
+        {/* 仅开发期：tweakcn 的 Custom 预览靠这个脚本回 PONG 并接收主题变量 */}
+        {process.env.NODE_ENV === "development" && (
+          <Script
+            src="https://tweakcn.com/live-preview.min.js"
+            strategy="beforeInteractive"
+            crossOrigin="anonymous"
+          />
+        )}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

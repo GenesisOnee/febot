@@ -30,15 +30,15 @@ import UserMenu from "./UserMenu";
 function iconOf(kind: NotificationKind) {
   switch (kind) {
     case "needs_input":
-      return <Bell className="h-3.5 w-3.5 text-amber-600" />;
+      return <Bell className="h-3.5 w-3.5 text-warning" />;
     case "failed":
       return <XCircle className="h-3.5 w-3.5 text-destructive" />;
     case "done":
-      return <CircleCheck className="h-3.5 w-3.5 text-green-600" />;
+      return <CircleCheck className="h-3.5 w-3.5 text-success" />;
     case "review":
       return <Inbox className="h-3.5 w-3.5 text-primary" />;
     case "runner_offline":
-      return <WifiOff className="h-3.5 w-3.5 text-amber-600" />;
+      return <WifiOff className="h-3.5 w-3.5 text-warning" />;
     case "sync_error":
       return <AlertTriangle className="h-3.5 w-3.5 text-destructive" />;
   }
@@ -104,7 +104,7 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "flex h-dvh shrink-0 flex-col border-r bg-card/40",
+        "flex h-dvh shrink-0 flex-col border-r bg-sidebar",
         collapsed ? "w-14" : "w-14 md:w-[15%] md:min-w-[220px]",
       )}
     >
@@ -144,7 +144,7 @@ export default function Sidebar({
             <Button variant="ghost" size="icon-sm" title={`消息 ${unread.length}`} onClick={() => onToggle()}>
               <Bell className="h-4 w-4" />
               {unread.length > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-warning" />
               )}
             </Button>
           </div>

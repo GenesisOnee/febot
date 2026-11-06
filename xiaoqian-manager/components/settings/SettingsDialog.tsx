@@ -298,7 +298,7 @@ export default function SettingsDialog({
           <DialogTitle>
             工作区设置
             {isInit && (
-              <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">
+              <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">
                 首次初始化
               </span>
             )}
@@ -473,7 +473,7 @@ export default function SettingsDialog({
                               </p>
                               <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
                                 {s.completeEntry ? (
-                                  <span className="rounded-full border border-green-600/40 bg-green-500/10 px-2 py-0.5 text-green-700 dark:text-green-400">
+                                  <span className="rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-success">
                                     已配置完成脚本：{s.completeEntry}
                                   </span>
                                 ) : s.completeMode === "required" ? (
@@ -486,13 +486,13 @@ export default function SettingsDialog({
                                   </span>
                                 )}
                                 {s.completeMode === "required" && (
-                                  <span className="rounded-full border border-amber-600/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">
+                                  <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">
                                     强制模式
                                   </span>
                                 )}
                               </p>
                               {s.lastRun && (
-                                <p className={s.lastRun.ok ? "text-xs text-green-600" : "text-xs text-destructive"}>
+                                <p className={s.lastRun.ok ? "text-xs text-success" : "text-xs text-destructive"}>
                                   最近运行：{s.lastRun.ok ? "成功" : "失败"}
                                   {s.lastRun.message ? ` · ${s.lastRun.message}` : ""}
                                 </p>

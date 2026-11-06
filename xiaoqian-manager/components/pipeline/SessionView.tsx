@@ -123,7 +123,7 @@ export default function SessionView({
           <span
             className={cn(
               "inline-flex items-center gap-1 text-xs",
-              connected ? "text-muted-foreground" : "text-amber-600",
+              connected ? "text-muted-foreground" : "text-warning",
             )}
             title={connected ? "WS 已连接" : "WS 断开，正在重连"}
           >

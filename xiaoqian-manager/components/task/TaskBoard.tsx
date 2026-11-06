@@ -225,8 +225,8 @@ export default function TaskBoard({
           </Select>
           <div className="ml-auto flex items-center gap-2">
             {pendingReview > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-600/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+              <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
                 {pendingReview} 个会话待你处理
               </span>
             )}
@@ -252,7 +252,7 @@ export default function TaskBoard({
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>共 {filtered.length} 个任务</span>
           {!online && (
-            <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400">
+            <span className="inline-flex items-center gap-1 text-warning">
               <WifiOff className="h-3.5 w-3.5" />
               runner 未启动
             </span>
@@ -260,7 +260,7 @@ export default function TaskBoard({
         </div>
 
         {!online && (
-          <div className="flex items-center gap-2 rounded-lg border border-amber-600/40 bg-amber-500/10 px-4 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <div className="flex items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2 text-xs text-warning">
             <WifiOff className="h-3.5 w-3.5" />
             runner 未启动（原因：流水线会话需要独立进程承载 PTY），启动/读取会话不可用。下一步：在项目根目录另开终端执行{" "}
             <code className="font-mono">yarn runner</code>。

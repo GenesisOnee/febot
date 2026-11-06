@@ -29,9 +29,9 @@ function labelOf(e: TimelineEvent): string {
 }
 
 function iconOf(e: TimelineEvent) {
-  if (e.type === "done" || e.status === "done") return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />;
+  if (e.type === "done" || e.status === "done") return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
   if (e.type === "error" || e.status === "failed") return <XCircle className="h-3.5 w-3.5 text-destructive" />;
-  if (e.status === "waiting") return <Clock className="h-3.5 w-3.5 text-amber-600" />;
+  if (e.status === "waiting") return <Clock className="h-3.5 w-3.5 text-warning" />;
   return <Circle className="h-3 w-3 text-muted-foreground/60" />;
 }
 

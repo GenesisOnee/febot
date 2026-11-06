@@ -18,12 +18,12 @@ export const RUN_STATUS_LABEL: Record<RunStatus, string> = {
 const CLASS: Record<RunStatus, string> = {
   starting: "border-border text-muted-foreground",
   running: "border-primary/40 text-primary",
-  needs_input: "border-amber-600/50 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  needs_input: "border-warning/50 bg-warning/10 text-warning",
   settling: "border-border text-muted-foreground",
-  done: "border-emerald-600/40 text-emerald-700 dark:text-emerald-400",
+  done: "border-success/40 text-success",
   failed: "border-destructive/40 text-destructive",
   cancelled: "border-border text-muted-foreground",
-  interrupted: "border-amber-600/40 bg-amber-500/5 text-amber-700 dark:text-amber-400",
+  interrupted: "border-warning/40 bg-warning/5 text-warning",
 };
 
 export function RunStatusBadge({
@@ -36,7 +36,7 @@ export function RunStatusBadge({
   return (
     <Badge variant="outline" className={cn("h-5 font-normal", CLASS[status], className)}>
       {status === "needs_input" && (
-        <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+        <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
       )}
       {RUN_STATUS_LABEL[status]}
     </Badge>

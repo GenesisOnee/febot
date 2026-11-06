@@ -154,7 +154,7 @@ function RunPanelInner({
         <span
           className={cn(
             "inline-flex items-center gap-1 text-[11px]",
-            online && connected ? "text-muted-foreground" : "text-amber-600",
+            online && connected ? "text-muted-foreground" : "text-warning",
           )}
           title={demo ? "演示模式：静态会话" : connected ? "WS 已连接" : "WS 断开，正在重连"}
         >
@@ -182,7 +182,7 @@ function RunPanelInner({
       )}
 
       {!online && !demo && (
-        <div className="border-b bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+        <div className="border-b bg-warning/10 px-3 py-2 text-xs text-warning">
           runner 未启动（原因：会话需要独立进程承载 PTY）。下一步：在项目目录执行{" "}
           <code className="font-mono">yarn runner</code>。
         </div>
