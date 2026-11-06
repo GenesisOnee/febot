@@ -77,7 +77,7 @@ async function api(pathname) {
   }
   if (res.status === 403 || res.status === 404) {
     fail(
-      `无权读取 ${repo} 的流量数据（原因：GitHub 返回 ${res.status}，Traffic API 要求对该仓库有 push 权限）`,
+      `无权读取 ${repo} 的流量数据（原因：${pathname} 返回 ${res.status}，Traffic API 要求对该仓库有 push 权限）`,
       "确认 token 对应账号是该仓库的 collaborator；fork 仓库或组织仓库可能拿不到 traffic 权限",
     );
   }
@@ -153,7 +153,8 @@ async function main() {
   // 顺序请求：401/403 时只报一次，不把四个失败堆在一起
   const views = await api("/traffic/views?per=week");
   const clones = await api("/traffic/clones?per=week");
-  const referrers = await api("/traffic/referrers?per=week");
+  // referrers 的真实路径是 /traffic/popular/referrers，且不接受 per 参数
+  const referrers = await api("/traffic/popular/referrers");
   const paths = await api("/traffic/popular/paths");
 
   const rows = readCsv(CSV);
