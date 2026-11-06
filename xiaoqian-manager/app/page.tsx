@@ -1,5 +1,6 @@
 import WorkbenchShell from "@/components/workbench/WorkbenchShell";
 import { readTasks } from "@/lib/server/store";
+import { isDemoMode } from "@/lib/server/demo";
 import { readGitOptions } from "@/lib/server/git/config";
 import {
   isInitialized,
@@ -59,6 +60,7 @@ export default async function Home({
       defaultUser={defaultUser}
       settings={settings}
       initialized={initialized}
+      demo={isDemoMode()}
       error={error}
     />
   );

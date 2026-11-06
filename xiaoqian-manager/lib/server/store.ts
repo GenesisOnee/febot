@@ -3,6 +3,7 @@ import path from "node:path";
 import { DEFAULT_PIPELINE } from "@/lib/domain/pipeline";
 import { TasksFile, Task, createStages, type TrajectoryItem } from "@/lib/domain/schema";
 import { DATA_DIR } from "@/lib/server/workspace";
+import { demoTasksSource, isDemoMode } from "@/lib/server/demo";
 
 // 仅服务端可用（node:fs）。浏览器端严禁 import 本文件。
 //
@@ -61,18 +62,40 @@ function normalizeRawTasks(json: unknown): unknown {
   };
 }
 
+/** 演示模式首次读取时，把示例任务复制进隔离工作区，后续读写都走真实文件。 */
+function seedDemoTasks(): void {
+  if (!isDemoMode() || fs.existsSync(TASKS_FILE)) return;
+  const source = demoTasksSource();
+  if (!source) return;
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.copyFileSync(source, TASKS_FILE);
+  } catch {
+    // 复制失败就退回空列表，不阻断演示页面渲染
+  }
+}
+
 export function readTasks(): { tasks: Task[]; updatedAt: string } {
+  seedDemoTasks();
   if (!fs.existsSync(TASKS_FILE)) return { tasks: [], updatedAt: "" };
   const raw = fs.readFileSync(TASKS_FILE, "utf8");
   let json: unknown;
   try {
     json = JSON.parse(raw);
   } catch {
-    throw new Error(`tasks.json is not valid JSON: ${TASKS_FILE}`);
+    throw new Error(
+      `tasks.json 不是合法 JSON（原因：文件可能被手动改坏或写入中断）：${TASKS_FILE}。` +
+        `下一步：备份并删除该文件后重新同步任务，或从 xiaoqian-manager/data/tasks.json.bak 恢复。`
+    );
   }
   const parsed = TasksFile.safeParse(normalizeRawTasks(json));
   if (!parsed.success) {
-    throw new Error(`tasks.json failed schema validation: ${TASKS_FILE}`);
+    const first = parsed.error.issues[0];
+    const where = first ? `字段 ${first.path.join(".") || "(根)"}：${first.message}` : "结构不匹配";
+    throw new Error(
+      `tasks.json 校验失败（原因：${where}）：${TASKS_FILE}。` +
+        `下一步：备份并删除该文件后重新同步任务；不要手工编辑 tasks.json。`
+    );
   }
   return { tasks: parsed.data.tasks, updatedAt: parsed.data.updatedAt };
 }

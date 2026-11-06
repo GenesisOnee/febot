@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { demoAccept, isDemoMode } from "@/lib/server/demo";
 import { runnerFetch } from "@/lib/server/runner-client";
 
 export const runtime = "nodejs";
@@ -10,6 +11,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  if (isDemoMode()) {
+    const run = demoAccept(id);
+    return run
+      ? NextResponse.json({ run, demo: true })
+      : NextResponse.json(
+          { error: "演示数据里没有这个会话。下一步：回到工作台重新点开任务。" },
+          { status: 404 }
+        );
+  }
   try {
     const data = await runnerFetch<unknown>(`/runs/${encodeURIComponent(id)}/accept`, {
       method: "POST",

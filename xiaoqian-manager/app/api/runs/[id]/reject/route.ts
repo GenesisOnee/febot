@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { demoReject, isDemoMode } from "@/lib/server/demo";
 import { runnerFetch } from "@/lib/server/runner-client";
 
 export const runtime = "nodejs";
@@ -19,6 +20,17 @@ export async function POST(
   if (!Array.isArray(body.paths) || body.paths.length === 0) {
     return NextResponse.json({ error: "paths 必须是非空数组" }, { status: 400 });
   }
+
+  if (isDemoMode()) {
+    const results = demoReject(id, body.paths.map(String));
+    return results
+      ? NextResponse.json({ results, demo: true })
+      : NextResponse.json(
+          { error: "演示数据里没有这个会话。下一步：回到工作台重新点开任务。" },
+          { status: 404 }
+        );
+  }
+
   try {
     const data = await runnerFetch<unknown>(`/runs/${encodeURIComponent(id)}/reject`, {
       method: "POST",

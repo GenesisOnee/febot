@@ -8,6 +8,7 @@ import { readGitOptions } from "@/lib/server/git/config";
 import { buildDeployMessage, submitCode } from "@/lib/server/git/deploy";
 import { readTasks, updateTask } from "@/lib/server/store";
 import { guardLocalWrite } from "@/lib/server/config/request-guard";
+import { demoBlocked, isDemoMode } from "@/lib/server/demo";
 import { runnerFetch } from "@/lib/server/runner-client";
 
 export const runtime = "nodejs";
@@ -20,6 +21,11 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isDemoMode()) {
+    const blocked = demoBlocked("submit");
+    return NextResponse.json(blocked, { status: 403 });
+  }
+
   const guard = guardLocalWrite(req);
   if (!guard.ok) {
     return NextResponse.json({ error: guard.message }, { status: 403 });

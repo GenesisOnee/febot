@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { demoBlocked, isDemoMode } from "@/lib/server/demo";
 import { runnerFetch } from "@/lib/server/runner-client";
 
 export const runtime = "nodejs";
@@ -9,6 +10,10 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isDemoMode()) {
+    const blocked = demoBlocked("input");
+    return NextResponse.json(blocked, { status: 403 });
+  }
   const { id } = await params;
   let body: { data?: unknown; submit?: unknown };
   try {

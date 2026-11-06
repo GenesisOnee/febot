@@ -96,10 +96,16 @@ export function readGitOptions(): GitOptions {
 export function resolveRepoPath(repo: string): string {
   const cfg = loadConfig();
   if (!cfg.root) {
-    throw new Error("未配置仓库根目录：请在工作台「设置 → 仓库与分支」填写仓库根目录");
+    throw new Error(
+      "未配置仓库根目录（原因：feeder / 定仓脚本无法定位业务仓）。" +
+        "下一步：打开工作台「设置 → 仓库与分支」填写仓库根目录，或检查 febot.config.json 的 repoRoot。"
+    );
   }
   if (!cfg.repos.includes(repo)) {
-    throw new Error(`仓库不在配置列表中：${repo}`);
+    throw new Error(
+      `仓库不在配置列表中：${repo}（原因：repositories[] 没有登记这个仓库名）。` +
+        "下一步：在「设置 → 仓库与分支」添加该仓库，或检查任务模块是否映射到了正确的仓库。"
+    );
   }
   if (/[\\/:]|\.\./.test(repo)) {
     throw new Error(`仓库名不合法：${repo}`);
@@ -110,7 +116,10 @@ export function resolveRepoPath(repo: string): string {
     throw new Error(`仓库路径越界：${repo}`);
   }
   if (!fs.existsSync(path.join(full, ".git"))) {
-    throw new Error(`不是 git 仓库或目录不存在：${full}`);
+    throw new Error(
+      `不是 git 仓库或目录不存在：${full}（原因：仓库根目录 + 仓库名拼出的路径下没有 .git）。` +
+        "下一步：确认仓库已克隆到该路径，或在「设置 → 仓库与分支」修正仓库根目录。"
+    );
   }
   return full;
 }
@@ -118,6 +127,9 @@ export function resolveRepoPath(repo: string): string {
 export function assertBranch(branch: string): void {
   const cfg = loadConfig();
   if (!cfg.branches.includes(branch)) {
-    throw new Error(`目标分支不在配置列表中：${branch}`);
+    throw new Error(
+      `目标分支不在配置列表中：${branch}（原因：分支候选只来自 defaults 与 repositories[] 的登记值）。` +
+        "下一步：在「设置 → 仓库与分支」补充该分支，或改用已登记的分支。"
+    );
   }
 }

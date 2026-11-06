@@ -1,0 +1,28 @@
+# 可选的记忆层：一条命令启动 Hindsight（API :8888 / UI :9999）。
+#
+# 首次使用：
+#   yarn setup                    # 生成 scripts/hindsight.env（模板已入库）
+#   # 填好 scripts/hindsight.env 里的模型 key
+#   docker compose up -d
+#
+# 不装也能跑主流程：流水线侧对 Hindsight 是软降级，助手侧会明确报错。
+# 等价的手动命令见 README「0.6 可选：Hindsight 记忆层」。
+
+services:
+  hindsight:
+    image: ghcr.nju.edu.cn/vectorize-io/hindsight:latest-slim
+    container_name: hindsight
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+      - "9999:9999"
+    env_file:
+      - scripts/hindsight.env
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+
+volumes:
+  # 显式命名，和 README 里 docker run -v hindsight-data 创建的数据卷共用，
+  # 两种启动方式可以来回切换而不会丢掉记忆。
+  hindsight-data:
+    name: hindsight-data

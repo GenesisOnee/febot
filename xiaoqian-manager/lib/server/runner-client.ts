@@ -20,7 +20,10 @@ export function readRunnerInfo(): RunnerInfo | null {
 
 export class RunnerOfflineError extends Error {
   constructor() {
-    super("runner 未运行：请先执行 yarn runner（独立进程，不要挂在 yarn dev 上）");
+    super(
+      "runner 未启动（原因：会话、diff 与历史记录都由独立 runner 进程提供，Next 进程不承载 PTY）。" +
+        "下一步：在项目根目录另开一个终端执行 yarn runner，然后重试。"
+    );
     this.name = "RunnerOfflineError";
   }
 }

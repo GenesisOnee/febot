@@ -36,12 +36,13 @@ function eventKey(e: TimelineEvent): string {
   return [e.ts, e.type, e.stage ?? "", e.name ?? "", e.status ?? "", e.path ?? "", e.message ?? ""].join("|");
 }
 
-export function useRunSession(initialRun: PipelineRun): RunSession {
+export function useRunSession(initialRun: PipelineRun, demo = false): RunSession {
   const router = useRouter();
   const runId = initialRun.id;
   const [run, setRun] = useState<PipelineRun>(initialRun);
   const [events, setEvents] = useState<TimelineEvent[]>([]);
-  const [connected, setConnected] = useState(false);
+  // 演示模式没有 WS，直接视为「已连接」，避免在 effect 里同步 setState
+  const [connected, setConnected] = useState(demo);
   const [online, setOnline] = useState(true);
   const [notice, setNotice] = useState("");
   const [refreshToken, setRefreshToken] = useState(0);
@@ -50,6 +51,8 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
   const pendingOutput = useRef("");
   // xterm 还没初始化时收到的屏幕快照：初始化后整屏写入，不能和 pendingOutput 混在一起
   const pendingScreen = useRef<string | null>(null);
+  // 演示模式的终端假快照：没有 WS，事件接口一次带回
+  const pendingDemo = useRef<string | null>(null);
   const lastSeq = useRef<number | undefined>(undefined);
   const wsRef = useRef<WebSocket | null>(null);
   const lastStatus = useRef<RunStatus>(initialRun.status);
@@ -65,8 +68,14 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
     fetch(`/api/runs/${encodeURIComponent(runId)}/events`, { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) return;
-        const json = (await res.json()) as { events?: TimelineEvent[] };
-        if (!stopped && Array.isArray(json.events)) setEvents(json.events);
+        const json = (await res.json()) as { events?: TimelineEvent[]; transcript?: string };
+        if (stopped) return;
+        if (Array.isArray(json.events)) setEvents(json.events);
+        if (typeof json.transcript === "string" && json.transcript) {
+          const api = termApi.current;
+          if (api) api.write(json.transcript);
+          else pendingDemo.current = json.transcript;
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -76,6 +85,7 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
 
   // ---------- WS：连接 / 重连 / 补发 ----------
   useEffect(() => {
+    if (demo) return;
     let closed = false;
     let ws: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -236,7 +246,7 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
       }
       wsRef.current = null;
     };
-  }, [runId]);
+  }, [runId, demo]);
 
   // 进入终态后刷新一次服务端数据（任务轨迹由 settle 回调写回）
   useEffect(() => {
@@ -248,6 +258,7 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
   }, [run.status, router]);
 
   const sendInput = useCallback((data: string) => {
+    if (demo) return;
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "input", runId, data } satisfies ClientMessage));
@@ -259,9 +270,10 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ data, submit: false }),
     }).catch(() => undefined);
-  }, [runId]);
+  }, [runId, demo]);
 
   const sendResize = useCallback((cols: number, rows: number) => {
+    if (demo) return;
     lastSize.current = { cols, rows };
     // 尺寸没变不重复发：无谓的 SIGWINCH 会让 TUI 整屏重绘
     const sent = sentSize.current;
@@ -271,10 +283,14 @@ export function useRunSession(initialRun: PipelineRun): RunSession {
       ws.send(JSON.stringify({ type: "resize", runId, cols, rows } satisfies ClientMessage));
       sentSize.current = { cols, rows };
     }
-  }, [runId]);
+  }, [runId, demo]);
 
   const handleReady = useCallback((api: TerminalApi) => {
     termApi.current = api;
+    if (pendingDemo.current !== null) {
+      api.write(pendingDemo.current);
+      pendingDemo.current = null;
+    }
     const screen = pendingScreen.current;
     if (screen !== null) {
       pendingScreen.current = null;

@@ -12,6 +12,7 @@ import {
   type SettingsDefaults,
 } from "@/lib/domain/settings";
 import type { GitOptions } from "@/lib/domain/git";
+import { ensureDemoConfigFile, isDemoMode } from "@/lib/server/demo";
 
 // febot.config.json 的唯一读写入口。
 //
@@ -34,12 +35,18 @@ function candidatePaths(): string[] {
   const list: string[] = [];
   const fromEnv = process.env.FEBOT_CONFIG;
   if (fromEnv && fromEnv.trim()) list.push(path.resolve(fromEnv.trim()));
+  // 演示模式：把 example/demo/febot.config.json 复制到隔离工作区后优先读，
+  // 这样设置页的写入不会改到入库模板。
+  if (isDemoMode()) {
+    const demo = ensureDemoConfigFile();
+    if (demo) list.push(demo);
+  }
   // 桌面端显式注入工作区：standalone 启动后 cwd 是安装目录，不能再靠 cwd 探测
   const workspace = process.env.FEBOT_WORKSPACE?.trim();
   if (workspace) list.push(path.join(path.resolve(workspace), "febot.config.json"));
   list.push(path.join(process.cwd(), "febot.config.json"));
   list.push(path.join(process.cwd(), "..", "febot.config.json"));
-  return list;
+  return [...new Set(list)];
 }
 
 export function configCandidates(): string[] {
@@ -62,7 +69,10 @@ function readJsonFile(p: string): Record<string, unknown> {
   try {
     raw = JSON.parse(fs.readFileSync(p, "utf8"));
   } catch {
-    throw new Error(`febot.config.json 不是合法 JSON：${p}`);
+    throw new Error(
+      `febot.config.json 不是合法 JSON（原因：文件里有多余逗号、注释或写入中断）：${p}。` +
+        `下一步：用 JSON 校验工具修正，或备份后从 example/febot.config.json 重新生成。`
+    );
   }
   return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
 }
@@ -100,7 +110,8 @@ export function warnMissingConfig(): void {
   if (warned) return;
   warned = true;
   console.warn(
-    "[config] 未找到 febot.config.json，仓库/分支下拉为空；请在工作台左下角「设置」完成初始化",
+    "[config] 未找到 febot.config.json（原因：工作台不知道仓库根目录与分支），仓库/分支下拉为空。" +
+      "下一步：左下角「设置」完成初始化，或执行 yarn setup 后填写 febot.config.json",
   );
 }
 

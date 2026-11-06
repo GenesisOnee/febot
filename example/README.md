@@ -13,6 +13,13 @@
 | `swagger-services.conf` | `swagger-mcp-server/services.conf`  |
 | `hindsight.env`         | `scripts/hindsight.env`             |
 
+另外两个目录不参与 `yarn setup`，只给演示模式用：
+
+| 目录 | 用途 |
+| --- | --- |
+| `demo/` | `yarn demo` 的静态夹具（任务、run、diff、终端快照），详见 [demo/README.md](demo/README.md) |
+| `demo-repo/` | 最小 Vue 3 示例仓模板；`yarn demo:repo` 会复制到 `.febot/demo-repo` 并初始化 git |
+
 生成逻辑见 [scripts/ensure-config.mjs](../scripts/ensure-config.mjs)：**目标已存在则跳过，绝不覆盖**，所以重复跑 `yarn setup` 是安全的，也不会冲掉你填过的内容。
 
 > `febot.config.json` 与 `hindsight.env` 里只放占位值。真实的账号、cookie、API key 一律只留在生成出来的本地文件里，**不要提交回这里**。

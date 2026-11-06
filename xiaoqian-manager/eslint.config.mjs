@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // yarn demo 的独立构建目录
+    ".next-demo/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

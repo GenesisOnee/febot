@@ -1,4 +1,5 @@
 import path from "node:path";
+import { demoWorkspaceDir, isDemoMode } from "./demo";
 
 // 工作区路径的唯一事实源。
 //
@@ -7,11 +8,17 @@ import path from "node:path";
 //
 // 注意：Next standalone 产物会在启动时 process.chdir(__dirname)，因此这里的
 // 路径必须在模块加载期就解析成绝对路径，不能延后到请求时才读 cwd。
+//
+// FEBOT_DEMO=1 时默认落到 .febot/demo-workspace：演示数据与真实 tasks.json 隔离。
 
 const WS = process.env.FEBOT_WORKSPACE?.trim();
 
-/** 工作区根：桌面端显式注入；本地开发回退为 xiaoqian-manager 的上级目录 */
-export const WORKSPACE_ROOT = WS ? path.resolve(WS) : path.resolve(process.cwd(), "..");
+/** 工作区根：桌面端显式注入；演示模式用隔离目录；本地开发回退为上级目录 */
+export const WORKSPACE_ROOT = WS
+  ? path.resolve(WS)
+  : isDemoMode()
+    ? demoWorkspaceDir()
+    : path.resolve(process.cwd(), "..");
 
 /** 数据目录：保持与现有仓库布局一致（<workspace>/xiaoqian-manager/data） */
 export const DATA_DIR = path.join(WORKSPACE_ROOT, "xiaoqian-manager", "data");

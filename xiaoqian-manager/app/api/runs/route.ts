@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PipelineRun } from "@/lib/domain/run";
+import { demoRuns, isDemoMode } from "@/lib/server/demo";
 import {
   RunnerOfflineError,
   isRunnerOnline,
@@ -13,6 +14,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const status = url.searchParams.get("status");
+  if (isDemoMode()) {
+    return NextResponse.json({ online: true, demo: true, runs: demoRuns(status) });
+  }
   if (!(await isRunnerOnline())) {
     return NextResponse.json({ online: false, runs: [] satisfies PipelineRun[] });
   }

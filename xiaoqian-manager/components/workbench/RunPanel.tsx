@@ -19,12 +19,14 @@ export default function RunPanel({
   taskTitle,
   taskModule,
   initialRun,
+  demo = false,
   onClose,
 }: {
   runId: string;
   taskTitle?: string;
   taskModule?: string;
   initialRun?: PipelineRun;
+  demo?: boolean;
   onClose: () => void;
 }) {
   const [run, setRun] = useState<PipelineRun | null>(initialRun ?? null);
@@ -68,6 +70,7 @@ export default function RunPanel({
           initialRun={run}
           taskTitle={taskTitle}
           taskModule={taskModule}
+          demo={demo}
           onClose={onClose}
         />
       ) : (
@@ -86,15 +89,17 @@ function RunPanelInner({
   initialRun,
   taskTitle,
   taskModule,
+  demo = false,
   onClose,
 }: {
   initialRun: PipelineRun;
   taskTitle?: string;
   taskModule?: string;
+  demo?: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const session = useRunSession(initialRun);
+  const session = useRunSession(initialRun, demo);
   const { run, connected, online, notice, setNotice } = session;
   const [busy, setBusy] = useState<"" | "accept" | "redo" | "cancel">("");
   const [redoOpen, setRedoOpen] = useState(false);
@@ -151,12 +156,14 @@ function RunPanelInner({
             "inline-flex items-center gap-1 text-[11px]",
             online && connected ? "text-muted-foreground" : "text-amber-600",
           )}
-          title={connected ? "WS 已连接" : "WS 断开，正在重连"}
+          title={demo ? "演示模式：静态会话" : connected ? "WS 已连接" : "WS 断开，正在重连"}
         >
           {!online ? (
             <>
               <WifiOff className="h-3 w-3" /> runner 离线
             </>
+          ) : demo ? (
+            "演示会话"
           ) : connected ? (
             "已连接"
           ) : (
@@ -174,9 +181,10 @@ function RunPanelInner({
         <div className="border-b bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">{notice}</div>
       )}
 
-      {!online && (
+      {!online && !demo && (
         <div className="border-b bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          runner 未启动。请在项目目录执行 <code className="font-mono">yarn runner</code>。
+          runner 未启动（原因：会话需要独立进程承载 PTY）。下一步：在项目目录执行{" "}
+          <code className="font-mono">yarn runner</code>。
         </div>
       )}
 
@@ -227,7 +235,8 @@ function RunPanelInner({
         <Button
           size="sm"
           variant="secondary"
-          disabled={busy !== "" || !live}
+          disabled={busy !== "" || !live || demo}
+          title={demo ? "演示模式不能给静态会话发消息" : undefined}
           onClick={() => setRedoOpen((v) => !v)}
         >
           <RotateCcw className="h-3.5 w-3.5" />
@@ -237,7 +246,8 @@ function RunPanelInner({
           size="sm"
           variant="ghost"
           className="text-destructive"
-          disabled={busy !== "" || !canCancel}
+          disabled={busy !== "" || !canCancel || demo}
+          title={demo ? "演示模式没有真实进程可终止" : undefined}
           onClick={() => void act("cancel")}
         >
           {busy === "cancel" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}

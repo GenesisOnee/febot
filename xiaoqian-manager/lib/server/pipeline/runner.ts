@@ -1,5 +1,6 @@
 import type { PipelineRun, Task } from "@/lib/domain/schema";
 import { updateTask } from "@/lib/server/store";
+import { demoRun, isDemoMode } from "@/lib/server/demo";
 import {
   RunnerOfflineError,
   readRunnerInfo,
@@ -162,6 +163,7 @@ export async function cancelPipeline(taskId: string): Promise<PipelineRun> {
 }
 
 export async function getRun(taskId: string): Promise<PipelineRun | null> {
+  if (isDemoMode()) return demoRun(taskId);
   try {
     const response = await runnerFetch<{ run: PipelineRun }>(
       `/runs/${encodeURIComponent(taskId)}`

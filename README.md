@@ -116,6 +116,28 @@ yarn setup
 
 2. 安装四个子项目的依赖：`code-indexer` / `xiaoqian-manager` / `swagger-mcp-server` / `desktop`。不需要桌面端时可单独执行 `yarn --cwd desktop install`，或从根 `setup` 里去掉 `desktop`。
 
+### 先看效果：`yarn demo`（不需要任何配置）
+
+装完依赖后，不用填 `febot.config.json`、不用启动 runner，直接：
+
+```bash
+yarn demo
+```
+
+打开 `http://localhost:3010` 就能看到（3010 被占用时会自动顺延到 3011、3012……，也可以用
+`FEBOT_PORT=3050 yarn demo` 指定；演示使用独立的 `.next-demo` 构建目录，可以和你正在跑的 `yarn dev` 并存）：
+
+- **任务队列**：5 个不同阶段的任务，点开「计划」节点可看计划描述与阶段编辑；
+- **待审队列**（`/review`）：1 个已完成、带 3 个文件 diff 的会话，可查看 diff、接受/驳回；
+- **会话面板**：右侧终端是静态快照，能看 planner / coder 的输出与等待点；
+- **已完成任务**：把状态筛选切到「已完成」可看到带代码提交记录的任务。
+
+演示数据来自 [example/demo/](example/demo/)，运行时只写 `.febot/demo-workspace/`（已 gitignore），**不会读写你的
+`febot.config.json`、`tasks.json` 或业务仓库**。演示里的「启动流水线 / 提交代码」等动作会明确提示不可用。
+
+> 没有自己的仓库也可以先看：`yarn demo` 会自动把 [example/demo-repo/](example/demo-repo/) 复制成
+> `.febot/demo-repo` 并初始化 git（`dev` 分支）；单独重建用 `yarn demo:repo --reset`。
+
 ## 0.3 填配置（`febot.config.json`）
 
 这是唯一必填的配置文件，`repoRoot` 相对**本文件所在目录**解析：
@@ -178,12 +200,17 @@ cd example-repo && git checkout dev
 ## 0.5 跑起来
 
 ```bash
+yarn demo         # 演示模式：不填配置、不起 runner，直接看队列/计划/审阅
 yarn dev          # 起 xiaoqian-manager :3010
-yarn xiaoqian     # 只起 xiaoqian-manager :3010
+yarn runner       # 流水线 runner（独立进程，启动/读取会话必需）
 yarn desktop:dev  # 桌面端窗口（Electron 内拉起 Next + runner，见 §16）
 yarn recon <别名>  # 生成某需求的事实底稿 docs/requirements/<别名>/recon.md
 yarn feed --plan <计划文件> [--alias R-xxxxxx] [--json] [--dry-run]  # 接入需求（解析/定仓/门禁/脚手架）
 ```
+
+安装耗时：Windows 11 + 预热 yarn 缓存实测 `yarn setup` 约 64 秒、`yarn demo` 约 5 秒启动
+（步骤与环境见 [docs/install-timing.md](docs/install-timing.md)）。3010 被占用时 `yarn demo`
+会自动顺延端口，也可用 `FEBOT_PORT=3050 yarn demo` 指定。
 
 浏览器打开 `http://localhost:3010`，右上角「同步」拉需求。
 
@@ -191,11 +218,22 @@ yarn feed --plan <计划文件> [--alias R-xxxxxx] [--json] [--dry-run]  # 接�
 
 ## 0.6 可选：Hindsight 记忆层
 
+**推荐：compose 一条命令**（镜像、端口、env-file、数据卷都写在 [docker-compose.yml](docker-compose.yml)）：
+
+```bash
+yarn setup                 # 生成 scripts/hindsight.env（已存在则跳过）
+# 填 scripts/hindsight.env 里的模型 key
+docker compose up -d       # API :8888 / UI :9999
+python scripts/ensure-banks.py   # 建 bank + 预填流水线静态规矩
+```
+
+**备选：手写 docker run**（不想装 compose 时）：
+
 ```bash
 # 1) 填 scripts/hindsight.env（模板里有每个变量的来源说明）
 # 2) 拉镜像（ghcr.io 在国内被墙，用南大镜像）
 docker pull ghcr.nju.edu.cn/vectorize-io/hindsight:latest-slim
-# 3) 起容器
+# 3) 起容器（与 compose 共用 hindsight-data 卷，可随时切换）
 docker run -d --name hindsight --restart unless-stopped \
   -p 8888:8888 -p 9999:9999 \
   --env-file scripts/hindsight.env \
@@ -210,7 +248,9 @@ python scripts/ensure-banks.py
 
 | 现象 | 原因 / 怎么办 |
 | ---- | ------------- |
-| 仓库 / 分支下拉是空的 | `febot.config.json` 没填或 `repoRoot` 指向的目录不存在。控制台会打一行 `[config] 未找到 febot.config.json...` |
+| 仓库 / 分支下拉是空的 | `febot.config.json` 没填或 `repoRoot` 指向的目录不存在。控制台会打一行 `[config] 未找到 febot.config.json...`。下一步：跑 `yarn setup` 后填写，或在「设置」里初始化；只想看界面就先 `yarn demo` |
+| 启动流水线提示 `runner 未启动` | 会话、diff、历史都由独立 runner 提供。下一步：项目根目录另开终端执行 `yarn runner` |
+| `yarn demo` 起不来 | 依赖没装（`xiaoqian-manager/node_modules/next` 不存在）。下一步：先 `yarn setup` |
 | `yarn recon` 报「tasks.md 不存在」 | 没跑 `yarn setup`，或手工删掉了。从 `example/tasks.md` 复制一份即可 |
 | `recon` 报「repo dir not found」 | `repoRoot/<仓库目录名>` 不存在。先 clone，且目录名要和 `tasks.md` 第 5 列一致 |
 | 同步报「未配置协作平台账号」 | `teamwork` 段的 `loginName` / `password` / `cookie` 都没填。到设置→任务来源或 `febot.config.json` 补上；用自定义来源时改传该来源 |
@@ -645,8 +685,8 @@ swagger-mcp-server/      swagger-multi MCP 补丁版服务器,②③步用
 ## 13. 部署步骤
 
 1. `yarn setup` —— 自动生成 `scripts/hindsight.env`（从 [example/hindsight.env](example/hindsight.env) 复制，模板已入库），填入你的 Ark Plan Key + SiliconFlow Key
-2. `docker pull ghcr.nju.edu.cn/vectorize-io/hindsight:latest-slim`（ghcr.io 被墙，用南大镜像）
-3. `docker run -d --name hindsight --restart unless-stopped -p 8888:8888 -p 9999:9999 --env-file scripts/hindsight.env -v hindsight-data:/home/hindsight/.pg0 hindsight:slim`
+2. `docker compose up -d` —— 从 [docker-compose.yml](docker-compose.yml) 启动（镜像 `ghcr.nju.edu.cn/vectorize-io/hindsight:latest-slim`、端口 8888/9999、`hindsight-data` 卷都已写好）
+3. 不想用 compose 时退回 `docker pull ghcr.nju.edu.cn/vectorize-io/hindsight:latest-slim` + `docker run -d --name hindsight --restart unless-stopped -p 8888:8888 -p 9999:9999 --env-file scripts/hindsight.env -v hindsight-data:/home/hindsight/.pg0 hindsight:slim`；两种方式共用同一个卷
 4. `python scripts/ensure-banks.py [--product <你的产品线名>]`（建 demo-expertise / febot-project / <产品线> 3 库 + 预填 6 条静态规矩）
 
 > 模板里每个变量都有注释说明来源和注意事项；key 只留本地 `hindsight.env`，已被 gitignore。

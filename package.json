@@ -6,8 +6,9 @@
   "license": "MIT",
   "scripts": {
     "setup": "node scripts/ensure-config.mjs && yarn --cwd code-indexer && yarn --cwd xiaoqian-manager && yarn --cwd swagger-mcp-server && yarn --cwd desktop",
-    "dev": "node scripts/dev.mjs",
-    "xiaoqian": "yarn --cwd xiaoqian-manager dev",
+    "demo": "node scripts/demo.mjs",
+    "demo:repo": "node scripts/init-demo-repo.mjs",
+    "dev": "yarn --cwd xiaoqian-manager dev",
     "runner": "yarn --cwd xiaoqian-manager runner",
     "desktop:install": "yarn --cwd desktop",
     "desktop:dev": "yarn --cwd desktop dev",

@@ -7,6 +7,7 @@ import {
   startPipeline,
 } from "@/lib/server/pipeline/runner";
 import { RepoResolveError } from "@/lib/runner/repo-resolve";
+import { demoBlocked, isDemoMode } from "@/lib/server/demo";
 import { RunnerOfflineError } from "@/lib/server/runner-client";
 
 export const runtime = "nodejs";
@@ -17,6 +18,9 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isDemoMode()) {
+    return NextResponse.json(demoBlocked("start"), { status: 403 });
+  }
   try {
     const { id } = await params;
     const existing = readTasks().tasks.find((t) => t.id === id);
@@ -35,6 +39,9 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (isDemoMode()) {
+    return NextResponse.json(demoBlocked("cancel"), { status: 403 });
+  }
   try {
     const { id } = await params;
     const run = await cancelPipeline(id);

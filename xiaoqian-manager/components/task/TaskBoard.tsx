@@ -262,7 +262,8 @@ export default function TaskBoard({
         {!online && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-600/40 bg-amber-500/10 px-4 py-2 text-xs text-amber-700 dark:text-amber-400">
             <WifiOff className="h-3.5 w-3.5" />
-            runner 未启动，流水线功能不可用。请在项目目录执行 <code className="font-mono">yarn runner</code>。
+            runner 未启动（原因：流水线会话需要独立进程承载 PTY），启动/读取会话不可用。下一步：在项目根目录另开终端执行{" "}
+            <code className="font-mono">yarn runner</code>。
           </div>
         )}
 
@@ -273,7 +274,7 @@ export default function TaskBoard({
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-gutter-stable px-4 pb-4">
         {tasks.length === 0 && !error ? (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-20 text-center">
             <Inbox className="h-10 w-10 text-muted-foreground/50" />

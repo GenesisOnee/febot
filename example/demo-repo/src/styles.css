@@ -1,0 +1,67 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+  color: #1e293b;
+  background: #f8fafc;
+}
+
+body {
+  margin: 0;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.app-header nav {
+  display: flex;
+  gap: 12px;
+}
+
+.app-header a {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.app-main {
+  padding: 24px;
+}
+
+.order-table {
+  width: 100%;
+  max-width: 640px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.order-table th,
+.order-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  font-size: 14px;
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: #64748b;
+}
+
+form {
+  display: flex;
+  max-width: 360px;
+  flex-direction: column;
+  gap: 12px;
+}
+
+input,
+button {
+  padding: 8px 10px;
+  font-size: 14px;
+}

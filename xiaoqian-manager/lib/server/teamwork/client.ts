@@ -39,7 +39,10 @@ function cfg(): TeamworkConfig {
 function baseUrl(): string {
   const base = cfg().base;
   if (base) return base;
-  throw new TwLoginError("未配置协作平台地址：请在 febot.config.json 的 teamwork.base 填写");
+  throw new TwLoginError(
+    "未配置协作平台地址（原因：teamwork.base 为空，无法发起同步）。" +
+      "下一步：在「设置 → 协作平台」填写平台地址并保存后重试。"
+  );
 }
 
 function tableId(): string {

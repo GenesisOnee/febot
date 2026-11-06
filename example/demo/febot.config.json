@@ -1,0 +1,31 @@
+{
+  "repoRoot": "../../.febot",
+  "jenkinsBase": "",
+  "defaults": {
+    "devBranch": "dev",
+    "mergeBranch": "dev"
+  },
+  "repositories": [
+    {
+      "name": "demo-repo",
+      "devBranch": "dev",
+      "mergeBranch": "dev",
+      "projects": [{ "name": "示例产品 A" }]
+    }
+  ],
+  "teamwork": {
+    "base": "",
+    "username": "",
+    "loginName": "",
+    "password": "",
+    "userTag": "",
+    "tableId": "",
+    "autograph": "",
+    "cookie": "",
+    "users": []
+  },
+  "features": {
+    "hindsight": false
+  },
+  "nextDevOrigins": []
+}

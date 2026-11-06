@@ -35,10 +35,22 @@ Most AI coding tools stop at “write this function”. febot covers the whole d
 git clone https://github.com/Zombiesix/febot.git
 cd febot
 yarn setup     # generate config templates from example/ and install deps for 4 subprojects
-yarn dev       # start the workspace at http://localhost:3010
+yarn demo      # zero-config demo at http://localhost:3010
+yarn dev       # real workspace (reads your febot.config.json)
 ```
 
-On first launch a setup wizard scans your repo root, registers repositories/branches and configures the task source. You can start with an empty config; configure one repository to run your first requirement.
+`yarn demo` needs no config and no runner: it seeds `example/demo/` into `.febot/demo-workspace/`
+(never your real config or repos) and shows the queue, plan dialog, review queue and a static
+session panel. Pipeline start / code submit are disabled with an explicit explanation.
+If 3010 is taken it falls back to the next free port (or set `FEBOT_PORT=3050`), and it uses a
+separate `.next-demo` build dir so it can run next to your real `yarn dev`.
+
+Measured install on Windows 11 with a warm yarn cache: `yarn setup` ≈ 64 s, `yarn demo` ≈ 5 s to
+ready (details in [docs/install-timing.md](docs/install-timing.md); the file is in Chinese).
+
+For real use, launch the workspace, complete the setup wizard (it scans your repo root, registers
+repositories/branches and configures the task source), then start the pipeline runner in a second
+terminal with `yarn runner`.
 
 ## Architecture
 
@@ -47,7 +59,7 @@ On first launch a setup wizard scans your repo root, registers repositories/bran
 - **Workspace** (`xiaoqian-manager`, Next.js): requirement queue, plan approval, review & commit, timesheet write-back.
 - **AgentTeam** (`/pipeline` playbook + subagents): orchestrator, planner, coder, reviewer. **The interface is files, not chat history** — handoffs are persisted in `state.json`, `plan.md`, and `decisions.md`.
 - **Facts**: `code-indexer` computes frontend code facts on demand (routes, component trees, API domains, stores, permissions, storage); `swagger-mcp-server` feeds live API docs to agents.
-- **Memory** (optional): [Hindsight](https://github.com/vectorize-io/hindsight) in Docker, one instance with isolated banks — pipeline expertise vs. product knowledge never mix.
+- **Memory** (optional): [Hindsight](https://github.com/vectorize-io/hindsight) in Docker (`docker compose up -d` after `yarn setup`), one instance with isolated banks — pipeline expertise vs. product knowledge never mix.
 
 ## The 5-step pipeline
 

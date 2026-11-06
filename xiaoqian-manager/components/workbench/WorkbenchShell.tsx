@@ -23,6 +23,7 @@ export default function WorkbenchShell({
   defaultUser,
   settings,
   initialized,
+  demo = false,
   error,
 }: {
   initialTasks: Task[];
@@ -31,6 +32,7 @@ export default function WorkbenchShell({
   defaultUser: string;
   settings: SanitizedSettings | null;
   initialized: boolean;
+  demo?: boolean;
   error?: string;
 }) {
   return (
@@ -40,6 +42,7 @@ export default function WorkbenchShell({
         defaultUser={defaultUser}
         settings={settings}
         initialized={initialized}
+        demo={demo}
         error={error}
       />
     </WorkbenchProvider>
@@ -51,12 +54,14 @@ function ShellInner({
   defaultUser,
   settings,
   initialized,
+  demo,
   error,
 }: {
   gitOptions: GitOptions;
   defaultUser: string;
   settings: SanitizedSettings | null;
   initialized: boolean;
+  demo: boolean;
   error?: string;
 }) {
   const { tasks, byTask, selectedRunId } = useWorkbench();
@@ -115,6 +120,7 @@ function ShellInner({
           initialRun={selectedRun}
           taskTitle={selectedTask?.title}
           taskModule={selectedTask?.module}
+          demo={demo}
           onClose={() => {
             const url = new URL(window.location.href);
             url.searchParams.delete("run");

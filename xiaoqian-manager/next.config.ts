@@ -29,6 +29,9 @@ function readNextDevOrigins(): string[] {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: readNextDevOrigins(),
+  // 演示模式用独立构建目录：Next 16 的 dev server 按 distDir 加锁，
+  // 否则 yarn demo 会因为你已经开着一个 yarn dev 而直接退出。
+  distDir: process.env.FEBOT_DIST_DIR?.trim() || ".next",
   // 桌面端（resources/next）以 standalone server 启动；dev 下该选项无副作用。
   output: "standalone",
   // 关键安全项：Next 的文件追踪会把构建机的 data/ 原样打进 standalone 产物，

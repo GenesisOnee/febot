@@ -65,8 +65,18 @@ function toIncoming(source: TaskSource, raw: RawTask): IncomingTask {
 
 function requireSource(sourceId: string): TaskSource {
   const source = getTaskSource(sourceId);
-  if (!source) throw new Error(`未知任务来源：${sourceId}`);
-  if (source.kind === "manual") throw new Error("手动新建来源不支持同步");
+  if (!source) {
+    throw new Error(
+      `未知任务来源：${sourceId}（原因：来源没有注册，或脚本目录缺少 febot.source.json）。` +
+        "下一步：在「同步」弹窗重新选择来源；自定义来源请检查 lib/server/task-sources/registry.ts 的登记。"
+    );
+  }
+  if (source.kind === "manual") {
+    throw new Error(
+      "手动新建来源不支持同步（原因：本地任务没有远程上游）。" +
+        "下一步：改用协作平台或自定义脚本来源；本地任务请直接在任务列表里维护。"
+    );
+  }
   return source;
 }
 
