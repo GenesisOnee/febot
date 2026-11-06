@@ -5,7 +5,7 @@
 **A multi-agent delivery workspace for frontend teams.** Queue requirements, approve the plan, and let planner / coder / reviewer subagents ship code — while humans stay at the gate. Multiple repositories can run in parallel.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522.22-339933)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 [English](README.en.md) · [中文](README.md) · [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
@@ -40,7 +40,7 @@ Captured from the zero-config `yarn demo` fixtures (`example/demo/`).
 
 ## Quick start
 
-**Prerequisites:** Node ≥ 20.19, yarn 1.22.19, Git. On Windows use Git Bash for the shell scripts.
+**Prerequisites:** Node ≥ 22.22, yarn 1.22.19, Git. On Windows use Git Bash for the shell scripts.
 
 ```bash
 git clone https://github.com/Zombiesix/febot.git

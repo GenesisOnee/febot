@@ -98,7 +98,7 @@
 
 ### 2.3 为什么内置 Node，而不是要求用户装
 
-- Claude Code 本身依赖 Node；但用户机器上的 Node 版本不可控（本项目实测 25.x，README 要求 20.19+）。
+- Claude Code 本身依赖 Node；但用户机器上的 Node 版本不可控（本项目实测 25.x，README 要求 22.22+）。
 - runner 依赖 node-pty 原生模块；内置 Node 后 ABI 固定，打包与升级都可复现。
 - 仓库铁律“禁止更改 node / npm / yarn 版本”：内置运行时**只对本应用子进程生效**，不修改系统 PATH、不安装全局包，符合约束。
 

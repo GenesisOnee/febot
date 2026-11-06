@@ -91,5 +91,5 @@ yarn probe-deploy            # 走一遍 deploy 的 git 流程（fixture 仓）
 
 ## 环境要求
 
-- Node.js **20.19+**、yarn **1.22.19**（v1）
+- Node.js **22.22+**、yarn **1.22.19**（v1）
 - 仓库自带铁律：**禁止更改 node / npm / yarn 版本**

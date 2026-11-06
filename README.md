@@ -5,7 +5,7 @@
 **多 Agent 前端研发工作台** —— 需求排成队，人只负责梳理需求和拍板方案；编码、审查、修复交给 SubAgent 团队，多仓库可同时推进。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522.22-339933)](https://nodejs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 [中文](README.md) · [English](README.en.md) · [快速开始](#快速开始) · [架构](#架构) · [路线图](ROADMAP.md) · [更新日志](CHANGELOG.md) · [参与贡献](CONTRIBUTING.md)
@@ -36,7 +36,7 @@
 
 ## 快速开始
 
-**前置**：Node ≥ 20.19、yarn 1.22.19、Git。Windows 上用 Git Bash 跑 shell 脚本。
+**前置**：Node ≥ 22.22、yarn 1.22.19、Git。Windows 上用 Git Bash 跑 shell 脚本。
 
 ```bash
 git clone https://github.com/Zombiesix/febot.git
@@ -98,7 +98,7 @@ yarn dev       # 起工作台，浏览器打开 http://localhost:3010
 
 | 依赖        | 版本 / 说明                                                                |
 | ----------- | -------------------------------------------------------------------------- |
-| **Node.js** | **20.19+**（实测 22.x / 25.x 可用；`xiaoqian-manager` 用的 Next 版本要求 20.19 起） |
+| **Node.js** | **22.22+**（实测 25.x 可用；`xiaoqian-manager` 依赖的 `chokidar@6` 要求 22.22 起） |
 | **yarn**    | **1.22.19**（v1，全仓库统一；`package.json` 已写 `packageManager`）        |
 | **Python**  | 3.x（脚本只用标准库，**不需要 pip 安装任何东西**）                         |
 | **Git**     | 需要能 clone 你的目标仓；Windows 上建议用 **Git Bash** 跑 shell 脚本       |

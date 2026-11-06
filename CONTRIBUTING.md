@@ -18,7 +18,7 @@
 
 ## 环境搭建
 
-**前置**：Node ≥ 20.19、yarn 1.22.19、Python 3.x（脚本只用标准库）、Git。Windows 上请用 **Git Bash** 跑 shell 脚本。Docker 仅 Hindsight 需要，可不装。
+**前置**：Node ≥ 22.22、yarn 1.22.19、Python 3.x（脚本只用标准库）、Git。Windows 上请用 **Git Bash** 跑 shell 脚本。Docker 仅 Hindsight 需要，可不装。
 
 ```bash
 git clone https://github.com/<your-fork>/febot.git

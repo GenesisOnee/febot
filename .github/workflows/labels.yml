@@ -26,7 +26,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20.19.0"
+          node-version: "22.22.0"
 
       # 脚本零依赖，只需要 GITHUB_TOKEN；actions 自带的 token 有 issues: write。
       - name: Sync labels
