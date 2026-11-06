@@ -1,10 +1,25 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { isDemoMode } from "@/lib/server/demo";
 import "./globals.css";
+
+// 西文/数字用 Plus Jakarta Sans，等宽用 JetBrains Mono；
+// 中文字形不随这两个字体下载，交给下面的中文 fallback 栈。
+const sansFont = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans-latin",
+  display: "swap",
+});
+
+const monoFont = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono-latin",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "小前 · 前端工作流",
@@ -17,7 +32,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html
+      lang="zh-CN"
+      className={`${sansFont.variable} ${monoFont.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-screen antialiased">
         {/* 仅开发期：tweakcn 的 Custom 预览靠这个脚本回 PONG 并接收主题变量 */}
         {process.env.NODE_ENV === "development" && (
