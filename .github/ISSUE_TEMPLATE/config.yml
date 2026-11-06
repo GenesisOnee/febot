@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问答（Discussions · Q&A）
+    url: https://github.com/Zombiesix/febot/discussions/categories/q-a
+    about: 配置、安装、跑流水线时的问题，先在这里提问，方便其他人检索。
+  - name: 展示你的配置（Discussions · Show and tell）
+    url: https://github.com/Zombiesix/febot/discussions/categories/show-and-tell
+    about: 分享你的接入方案、Agent 配置和踩坑经验。
+  - name: 私密报告安全问题
+    url: https://github.com/Zombiesix/febot/security/policy
+    about: 漏洞请按 SECURITY.md 私下报告，不要开公开 Issue。

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="t d">
+  <title id="t">febot — multi-agent frontend delivery workspace</title>
+  <desc id="d">febot: queue requirements, approve the plan, agents code and review, humans merge.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="0.55" stop-color="#111c33"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.18" cy="0.28" r="0.7">
+      <stop offset="0" stop-color="#3b82f6" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <style>
+      .wordmark { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 96px; font-weight: 800; letter-spacing: -2px; fill: #f8fafc; }
+      .dot { fill: #3b82f6; }
+      .h1 { font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; font-size: 42px; font-weight: 700; fill: #f8fafc; }
+      .h2 { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 22px; fill: #94a3b8; }
+      .card { fill: #16233d; stroke: #2b3b5c; stroke-width: 2; }
+      .card-num { font-family: "Segoe UI", sans-serif; font-size: 15px; font-weight: 700; fill: #93c5fd; }
+      .card-title { font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; font-size: 21px; font-weight: 600; fill: #f1f5f9; }
+      .card-sub { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; fill: #94a3b8; }
+      .foot { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 17px; fill: #64748b; }
+      .line { stroke: #334766; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+
+  <!-- left: brand -->
+  <g transform="translate(80, 214)">
+    <text class="wordmark" x="0" y="0">febot<tspan class="dot">.</tspan></text>
+    <rect x="2" y="34" width="96" height="6" rx="3" fill="#3b82f6"/>
+  </g>
+
+  <text class="h1" x="80" y="316">多 Agent 前端研发工作台</text>
+  <text class="h2" x="80" y="360">需求排成队，人只负责梳理需求和拍板方案</text>
+  <text class="h2" x="80" y="392">编码、审查、修复交给 SubAgent 团队</text>
+
+  <g transform="translate(80, 440)">
+    <rect x="0" y="0" width="150" height="38" rx="19" fill="#1e3a8a"/>
+    <text x="75" y="25" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#bfdbfe">MIT</text>
+    <rect x="166" y="0" width="196" height="38" rx="19" fill="#16233d" stroke="#2b3b5c"/>
+    <text x="264" y="25" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" fill="#cbd5e1">Claude Code runner</text>
+    <rect x="378" y="0" width="150" height="38" rx="19" fill="#16233d" stroke="#2b3b5c"/>
+    <text x="453" y="25" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="16" fill="#cbd5e1">Vue 3</text>
+  </g>
+
+  <!-- right: flow -->
+  <g transform="translate(742, 96)">
+    <rect class="card" x="0" y="0" width="458" height="88" rx="14"/>
+    <text class="card-num" x="24" y="36">01</text>
+    <text class="card-title" x="64" y="39">需求队列 · 同步</text>
+    <text class="card-sub" x="64" y="66">Queue requirements from your tracker</text>
+
+    <line class="line" x1="40" y1="88" x2="40" y2="112"/>
+
+    <rect class="card" x="0" y="112" width="458" height="88" rx="14"/>
+    <text class="card-num" x="24" y="148">02</text>
+    <text class="card-title" x="64" y="151">计划拍板 · 人工门禁</text>
+    <text class="card-sub" x="64" y="178">Human approves plan.md → decisions.md</text>
+
+    <line class="line" x1="40" y1="200" x2="40" y2="224"/>
+
+    <rect class="card" x="0" y="224" width="458" height="88" rx="14"/>
+    <text class="card-num" x="24" y="260">03</text>
+    <text class="card-title" x="64" y="263">planner · coder · reviewer</text>
+    <text class="card-sub" x="64" y="290">Agents code, review and fix (≤ 2 rounds)</text>
+
+    <line class="line" x1="40" y1="312" x2="40" y2="336"/>
+
+    <rect class="card" x="0" y="336" width="458" height="88" rx="14"/>
+    <text class="card-num" x="24" y="372">04</text>
+    <text class="card-title" x="64" y="375">diff 审阅 · 人工提交</text>
+    <text class="card-sub" x="64" y="402">Humans review, commit and merge</text>
+  </g>
+
+  <text class="foot" x="80" y="590">github.com/Zombiesix/febot</text>
+</svg>

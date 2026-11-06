@@ -1,6 +1,65 @@
-# febot / 前端研发自动化工作区
+<div align="center">
 
-> 把「提需求 → 拆方案 → AI 编码/审查/修复 → 提交合并 → 填工时」串成一条可回退的本地流水线；再配一个能随时回答「这个模块干嘛的、这个字段谁改的、权限在哪判的」的业务助手。
+# febot
+
+**多 Agent 前端研发工作台** —— 需求排成队，人只负责梳理需求和拍板方案；编码、审查、修复交给 SubAgent 团队，多仓库可同时推进。
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933)](https://nodejs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+[中文](README.md) · [English](README.en.md) · [快速开始](#快速开始) · [架构](#架构) · [路线图](ROADMAP.md) · [参与贡献](CONTRIBUTING.md)
+
+</div>
+
+<!-- 60 秒 GIF 录制完成后放到 docs/assets/demo-60s.gif，并取消下一行注释 -->
+<!-- <p align="center"><img src="docs/assets/demo-60s.gif" alt="60 秒演示：同步需求 → 拍板计划 → 三个 Agent 跑 → diff 审阅" width="880"></p> -->
+
+## 三个关键点
+
+|                         | 常见做法                                 | febot                                                                               |
+| ----------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
+| **需求不再散**          | 十条需求十条消息，最后不知道谁在改哪个仓 | 需求队列 + 状态机 + `tasks.md`；跨仓并行、同仓串行，一眼看清每个需求的落点           |
+| **人只做决策**          | 边聊边改，改完才发现方向错了             | 人只卡门禁：计划、文件白名单、diff；每次拍板落进 `decisions.md`，留完整审计链        |
+| **Agent 团队分工**      | 一个 Agent 又写又审，等于自己批自己      | planner / coder / reviewer 分离：reviewer 只读 diff，有 blocker 必须回改（≤ 2 轮）   |
+
+## 快速开始
+
+**前置**：Node ≥ 20.19、yarn 1.22.19、Git。Windows 上用 Git Bash 跑 shell 脚本。
+
+```bash
+git clone https://github.com/Zombiesix/febot.git
+cd febot
+yarn setup     # 从 example/ 生成配置模板，并安装四个子项目的依赖
+yarn dev       # 起工作台，浏览器打开 http://localhost:3010
+```
+
+首次启动会弹出可视化设置：扫描仓库根目录、登记目标仓与分支、填任务来源。**配置留空也能启动并看到设置向导；配好一个仓库即可跑通第一条需求。**
+完整步骤（配置项逐条解释、Hindsight 记忆层、常见报错）见下方 [第〇部分](#第〇部分快速开始新环境从零跑起来)。
+
+## 架构
+
+![febot 架构：人卡门禁 / 工作台 / AgentTeam / 事实层与记忆层](docs/assets/architecture.png)
+
+- **工作台** `xiaoqian-manager`：需求队列、计划拍板、审阅提交、工时回填（①④⑤ 步）。
+- **AgentTeam**：`/pipeline` 剧本 + planner / coder / reviewer 三个 subagent（②③ 步）。**文件即接口**——交接靠 `state.json` / `plan.md` / `decisions.md` 落盘，不靠对话历史。
+- **事实层**：`code-indexer` 现算前端代码事实（路由 / 组件树 / API 域 / store / 权限 / 存储）；`swagger-mcp-server` 提供实时 API 文档。
+- **记忆层**：Hindsight 按 bank 隔离——流水线存研发经验，业务助手存业务知识，互不污染。
+
+**能力边界（诚实版）**：跨仓并行、**同仓串行**（共用主仓工作区，为的是随时能起 dev server 验收）；Agent 永远不 push，远程写操作留给人；当前只支持 Vue3 仓库，runner 目前只有 Claude Code。设计权衡见下方第一部分，后续方向见 [ROADMAP.md](ROADMAP.md)。
+
+---
+
+## 目录
+
+- 第〇部分：快速开始（新环境从零跑起来）
+- 第一部分：研发流水线（①）
+- 第二部分：业务助手 assistant（②）
+- 第三部分：底座与周边
+- 第四部分：Hindsight 记忆系统
+- 第五部分：全景与定制
+
+---
 
 `febot`（**fe** 前端 + **bot** 自动化代理）是一个**前端研发工作区**，里面有两条**互相独立**的主线，共用一个「看代码 + 记知识」的底座：
 
@@ -10,18 +69,6 @@
 | **② 业务助手 assistant**     | 随时问业务：这个模块干嘛的、这个字段谁改的、权限在哪判的 | Claude Code 内 `/assistant`                                | 任何要懂业务的人 |
 
 两条线**不互调、不共享 bank**，但都站在同一层底座上：
-
-```text
-       ① 研发流水线                        ② 业务助手 assistant
-   (xiaoqian-manager + AgentTeam)          (/assistant skill)
-              │                                   │
-              └──────────────┬────────────────────┘
-                             ▼
-        ┌────────────────────────────────────────────────┐
-        │ 事实层 code-indexer（现算，不落盘）              │
-        │ 记忆层 Hindsight :8888（按内容分 bank，互不污染）│
-        └────────────────────────────────────────────────┘
-```
 
 - **事实层**：`code-indexer` 静态索引器 —— 路由 / 组件树 / API 域 / store / 事件 / 权限 / 存储。
 - **记忆层**：本机 Docker 里的 Hindsight（见第四部分 §12–§15）—— 流水线存「研发流程经验」，助手存「业务知识」，**两套 bank 分开**。

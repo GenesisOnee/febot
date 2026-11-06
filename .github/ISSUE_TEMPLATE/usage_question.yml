@@ -1,0 +1,47 @@
+name: 使用问题
+description: 安装、配置、跑流水线时卡住了
+title: "[Usage] "
+labels: ["usage", "question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先查 README 的「常见问题」与对应子项目 README；如果仍未解决，请把**报错原文**和**已脱敏的配置片段**贴上来。
+        不要贴 cookie / 密码 / API key / 内部域名。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 你想做什么
+      description: 目标 + 卡住的步骤
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已经试过什么
+      description: 已经查过的文档、改过的配置、重试过的命令
+    validations:
+      required: false
+
+  - type: textarea
+    id: error
+    attributes:
+      label: 报错 / 日志
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      value: |
+        - OS:
+        - Node:
+        - yarn:
+        - 启动方式（`yarn dev` / 桌面端 / 其他）:
+        - 目标仓框架:
+    validations:
+      required: true

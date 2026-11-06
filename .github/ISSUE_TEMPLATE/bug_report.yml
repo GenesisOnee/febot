@@ -1,0 +1,69 @@
+name: Bug 报告
+description: 能复现的错误、崩溃或行为不符合预期
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请尽量给出**最小可复现步骤**；贴配置时请先脱敏（不要贴 cookie / 密码 / API key）。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际行为 + 完整报错或截图
+      placeholder: 点击「同步」后……控制台报……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 配置 febot.config.json 的 ...
+        2. 运行 yarn dev
+        3. 点击 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      value: |
+        - OS:
+        - Node:
+        - yarn:
+        - febot 版本 / commit:
+        - 目标仓框架与版本（如 Vue 3.x）:
+        - 是否启用 Hindsight（Docker）:
+        - 桌面端还是 `yarn dev`:
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: 相关配置（已脱敏）
+      description: "`febot.config.json` 里与问题相关的片段；请删除账号、cookie、password、内部域名与业务名。"
+      render: jsonc
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: 终端输出、`docs/requirements/<别名>/orchestrator-log.md` 或浏览器控制台。
+      render: shell
+    validations:
+      required: false
